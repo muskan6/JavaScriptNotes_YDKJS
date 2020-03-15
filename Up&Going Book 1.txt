@@ -89,7 +89,7 @@ function outer() {
  }
  inner();
  // console.log(d); -> gives Reference error, d is not defined
- // we can only access `a` here
+ // we can only access 'a' here
  console.log( c ); // 1
 }
 outer();
@@ -200,7 +200,7 @@ var x = (function IIFE(){
 x; // 42
 
 // Closures
-// simply understand it like when an outer function has another inner function in it, the outer function can return the inner function which represents a closure of the variables bound by outer function
+// simply understand it like when an outer function has another inner function in it, the inner function can access all the variables outside its scope, inside the outer function scope.
 function f1(x){
 	function f2(y){
 		return x+y;
@@ -209,7 +209,7 @@ function f1(x){
 }
 var a = f1(10);
 // now a gets a reference to the inner function f2 with closure over the x parameter of the outer function f1
-// Module -> keep it as a combination of classes, closures and added functionalites, learn later
+// Module -> keep it as a combination of classes, closures and added functionalites, learn in later sections
 
 
 //this identifier -> eg:
@@ -236,7 +236,7 @@ var foo = {
 };
 // create 'bar' and link it to 'foo'
 // this basically means that a variable that accesses the properties of an object is its prototye
-// and will into the object's body for accessing the keys, else would create a new one on the object itself 
+// and will go into the object's body for accessing the keys, else would create a new one on the object itself 
 var bar = Object.create( foo ); 
 bar.b = "hello world";
 bar.b; // "hello world"

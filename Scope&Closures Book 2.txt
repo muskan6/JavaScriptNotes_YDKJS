@@ -28,7 +28,7 @@ LHS ~ find the target of the assignment
 2) if RHS lookup is found but it is assigned a value it cant take, for eg, x was found a variable but you're now trying to execute it-> Type error
 3) if LHS lookup can't be found, reference error
 
-//Lex-time <-> Lexical Scope (scope defined at lex-time) -> It is basically where variables and blocks of scope we create in our code are present
+//Lex-time <-> Lexical Scope (scope which is defined at lex-time) -> It is basically where variables and blocks of scope we create in our code are present
 eg : 
 function foo(a) {
 	var b = a * 2;
@@ -45,8 +45,19 @@ Bubble 3 encompasses the scope of bar , and it includes just one identifier: c .
 
 //Scope look-ups :- looking upwards and outwards in a bubble, until you find the identifier you are looking for. First match is your find.
 //concept of "shadowing" (the inner identifier "shadows" the outer identifier).
-//window.a -> you can access global variables by property reference to the global object, here window, even if it is shadowed.
+//window.a -> you can access global variables (here a) by property reference to the global object (here window) even if it is shadowed.
 //non-global shadowed variables cannot be accessed like this
+var varx = 1;
+function f1(){
+var varx = 3;
+var vary = 2;
+    function f2(){
+        var vary = 3;
+    }
+}
+console.log(varx); //1
+console.log(window.varx); //1 -> global shadowed variable
+console.log(window.vary); //undefined -> non-global shadowed variable
 
 // CHEATING IN LEXICAL SCOPES
 //You can interfere with lexical scoping process( -> lexical scoping is basically evaluating variables correctly acc to their scopes.)
