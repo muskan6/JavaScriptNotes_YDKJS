@@ -1,0 +1,262 @@
+// variables, operators
+var a = 21
+var b = a * 2
+console.log(b) // prints b = 42
+// = -> assignment operator
+// Math -> +, -, *, /
+// Compound assignment -> +=, -=, *=, and /= are compound operators that combine a math operation with assignment
+// Increment/decrement -> ++ (increment), -- (decrement)
+// Object property access -> . as in console.log()
+// Equality -> == (loose-equals), === (strict-equals), != (loose not-equals), !== (strict not-equals)
+var a = [1,2,3] // automatic coercion makes it "1,2,3"
+var b = [1,2,3]
+var c = "1,2,3"
+a == c //true
+b == c //true
+a == b //false -> because JavaScript objects are compared by reference, not by value.
+a === c //false (strict checking, no implicit coercions are done in case of ===)
+
+var a = 42;
+var b = "foo";
+a < b; // false
+a > b; // false
+a == b; // false
+// why all 3 false ? bcoz b = "foo" coerced itself into an invalid number , NaN, hence such results
+// Comparison -> < (less than), > (greater than), <= (less than or loose-equals), >= (greater than or loose-equals)
+// Logical -> && (and), || (or)
+
+
+// Conversion of one data type to other is coercion (number to string and so on..)
+var a = "42";
+var b = Number( a );//explicit conversion
+console.log( a ); // "42"
+console.log( b ); // 42
+// see that this will be loosely equal
+"99.99" == 99.99
+true // converts "99.99" to 99.99 loosely
+
+
+// dynamic typing -> a variable can store multiple types of values 
+var amount = 99
+undefined
+amount = "$" + amount // make amountStr as other var to store this value, this would be static typing -> each variable stores one type of value
+"$99"
+
+
+// toFixed(..) lets us specify how many decimal places we’d like the number rounded to
+amount = 99.9999989
+99.9999989
+amount.toFixed(3)
+"100.000"
+
+
+// { .. } block of code
+
+
+/* JavaScript defines a list of specific values that are considered “falsy”
+because when coerced to a boolean, they become false—these
+include values like 0 and "". Any other value not on the “falsy” list is
+automatically “truthy”—when coerced to a boolean they become
+true. Truthy values include things like 99.99 and "free". */
+The specific list of “falsy” values in JavaScript is as follows:
+• "" (empty string)
+• 0, -0, NaN (invalid number)
+• null, undefined
+• false
+Following is example of list is “truthy.” :
+• "hello"
+• 42
+• true
+• [ ], [ 1, "2", 3 ] (arrays)
+• { }, { a: 42 } (objects)
+• function foo() { .. } (functions)
+// example : 
+var checkTorF = [];
+checkTorF = Boolean(checkTorF) //true
+
+
+// loops -> for, while, do-while
+
+
+// functions -> its arguements and calling
+// scope -> a block of code can access variables that were declared outside its scope of within its scope, not of the blocks inside
+function outer() {
+ var c = 1;
+ function inner() {
+ var d = 2;
+ // we can access both `c` and `d` here
+ console.log( c + d ); // 3
+ }
+ inner();
+ // console.log(d); -> gives Reference error, d is not defined
+ // we can only access `a` here
+ console.log( c ); // 1
+}
+outer();
+
+
+// types -> 
+• string
+• number
+• boolean
+• null and undefined
+• object
+• symbol (new to ES6)
+
+
+// typeof operator tells type of values
+var x;
+typeof x; // "undefined"
+x = "hello world";
+typeof x; // "string"
+x = 42;
+typeof x; // "number"
+x = true;
+typeof x; // "boolean"
+x = null;
+typeof x; // "object"--weird, bug
+x = undefined;
+typeof x; // "undefined"
+x = { y: "c" };
+typeof x; // "object"
+//Some unexplainable cases in JS
+typeof null //"object" -> ?
+typeof undefined //"undefined" -> ?
+typeof Object //"function" -> ?
+typeof function(){} //"function" -> seems right !
+
+
+//Objects are compound values
+var obj = {
+    t : "a", 
+    u : "b",
+    v : "c"
+};
+undefined
+obj.t
+"a"
+obj["t"]
+"a"
+// using variable as a key to access properties of objects
+var obj = {
+ x: "hello world",
+ y: 42
+};
+var y = "x";
+obj[y]; // "hello world"
+obj["y"] //42
+
+
+// Arrays -> can contain multiple types of values
+var arr = ["string type", "9", "0.8989", obj = {name : "John", age : "56" } ]
+arr[0] //"string type"
+arr[1] //"9"
+arr[2] //"0.8989"
+arr[3] //{name: "John", age: "56"}
+arr[3]["name"] //"John"
+arr[3].age //"56"
+
+
+// Functions -> functions are a subtype of objects
+function f(){
+    console.log("normal function")
+}
+f(); // normal function
+var af = () => {
+    console.log("arrow function")
+}
+af(); //arrow function
+//arrow func with parameter, can add multiple params
+var af = (paramone) => {
+    console.log("arrow function with parameter = " + paramone)
+}
+af("johhny") // arrow function with parameter = johhny
+
+//Built in methods
+length, toUpperCase(), toLowerCase(), toFixed(2),... 
+
+
+//Hoisting -> variable declarations might be somewhere down but they are available to entire scope
+function foo() {
+ a = 1; // 'a' not formally declared
+}
+foo();
+a; // 1 -> accessible because without declaring it inside foo, it got converted into an auto global variable, a feature of hoisting
+
+
+// strict mode -> "use strict" tightens rules, for eg, "use strict" before function foo(){ .. } would not let you declare a = 1 without var
+
+
+// immediately invoked function expression (IIFE)
+(function IIFE(){
+ console.log( "Hello!" );
+})();
+// "Hello!"
+// the outer () are for syntax to separate it from normal functions, the ending (); executes the function expression referenced immediately before it
+// IIFE can also have return values
+var x = (function IIFE(){
+ return 42;
+})();
+x; // 42
+
+// Closures
+// simply understand it like when an outer function has another inner function in it, the outer function can return the inner function which represents a closure of the variables bound by outer function
+function f1(x){
+	function f2(y){
+		return x+y;
+	}
+	return f2;
+}
+var a = f1(10);
+// now a gets a reference to the inner function f2 with closure over the x parameter of the outer function f1
+// Module -> keep it as a combination of classes, closures and added functionalites, learn later
+
+
+//this identifier -> eg:
+function foo() {
+ console.log( this.bar );
+}
+var bar = "global";
+var obj1 = {
+ bar: "obj1",
+ foo: foo
+};
+var obj2 = {
+ bar: "obj2"
+};
+foo(); // this refers to the global object bar here with value = "global" 
+obj1.foo(); // this refers to obj1 here with value = "obj1" 
+foo.call( obj2 ); // this refers to obj2 here with value = "obj2"  
+new foo();  // this refers to a new empty object
+
+
+// Prototypes
+var foo = {
+ a: 42
+};
+// create 'bar' and link it to 'foo'
+// this basically means that a variable that accesses the properties of an object is its prototye
+// and will into the object's body for accessing the keys, else would create a new one on the object itself 
+var bar = Object.create( foo ); 
+bar.b = "hello world";
+bar.b; // "hello world"
+bar.a; // 42 -> delegated to 'foo'
+
+// Polyfilling -> taking the definition of a newer feature and producing a piece of code that’s equivalent to the behavior so that it is able to run in older JS environments.
+
+// Transpiling -> new syntax cant be polyfilled, this converts your newer code into older code equivalents, a term for transforming + compiling.
+//eg : 1) Babel (formerly 6to5) -> Transpiles ES6+ into ES5 , 2) Traceur -> Transpiles ES6, ES7, and beyond into ES5
+function foo(a = 2) {
+ console.log( a );
+}
+foo(); // 2
+foo( 42 ); // 42
+//transpiling
+function foo() {
+ var a = arguments[0] !== (void 0) ? arguments[0] : 2;
+ console.log( a );
+}
+
+
+//Non javascript
+document, console.log, getElementById, ... all these are provided by browsers and not JS
