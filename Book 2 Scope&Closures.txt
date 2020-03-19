@@ -1,0 +1,390 @@
+// Compiler in js
+// Though js is an interpreted language, some steps are very similiar to compiling
+1) Lexing/ Tokenizing :  breaking a statement into tokens, eg: var a = 2 ; becomes var, a, =, 2, ; as 5 tokens
+2) Parsing : Making abstract syntax tree of the tokens, basically making the design tree to represent grammatical structure of statement
+3) Code generation : converting AST to machine executable code
+
+// Understanding scope
+1) engine - start to end compilation and execution is handled here.
+2) compiler - looks up the parsing and compiling part of your code.
+3) scope - contains look-up of all identifiers and generates accessibility rules for them.
+// 2 main terms : LHS lookup and RHS lookup
+// LHS look-up is done when a variable appears on the left-hand side of an assignment operation, and an
+// RHS look-up is done when a variable appears on the right-hand side of an assignment operation
+// eg:
+function foo(a) { // LHS Look-up -> find what a = ?
+	console.log( a ); // 2 -> RHS Look-up -> find what is source of a ?
+}
+foo( 2 ); // RHS Look-up // find what is source of foo ? -> probably a function call, so will be a function
+RHS ~ Retrieve his/her source !! -> find the source of the assignment
+LHS ~ find the target of the assignment 
+
+// Nested Scope
+//consider the variables of a scope assigned as floors of buildings, you are the first floor as you are current scope. 
+//Keep looking on upper floors if look up not found, the top floor is global scope, if not found there, reference error
+
+// Error : why LHS and RHS ? bcoz they behave differently while encountering errors
+1) if RHS lookup for some variable cant be found, then it throws reference error
+2) if RHS lookup is found but it is assigned a value it cant take, for eg, x was found a variable but you're now trying to execute it-> Type error
+3) if LHS lookup can't be found, reference error
+
+//Lex-time <-> Lexical Scope (scope which is defined at lex-time) -> It is basically where variables and blocks of scope we create in our code are present
+eg : 
+function foo(a) {
+	var b = a * 2;
+	function bar(c) {
+		console.log( a, b, c );
+	}
+	bar(b * 3);
+}
+foo( 2 ); // 2 4 12
+3 bubbles aka function based scope bubbles : 
+Bubble 1 encompasses the global scope, and has just one identifier in it: foo .
+Bubble 2 encompasses the scope of foo , which includes the three identifiers: a , bar and b .
+Bubble 3 encompasses the scope of bar , and it includes just one identifier: c .
+
+//Scope look-ups :- looking upwards and outwards in a bubble, until you find the identifier you are looking for. First match is your find.
+//concept of "shadowing" (the inner identifier "shadows" the outer identifier).
+//window.a -> you can access global variables (here a) by property reference to the global object (here window) even if it is shadowed.
+//non-global shadowed variables cannot be accessed like this
+var varx = 1;
+function f1(){
+var varx = 3;
+var vary = 2;
+    function f2(){
+        var vary = 3;
+    }
+}
+console.log(varx); //1
+console.log(window.varx); //1 -> global shadowed variable
+console.log(window.vary); //undefined -> non-global shadowed variable
+
+// CHEATING IN LEXICAL SCOPES
+//You can interfere with lexical scoping process( -> lexical scoping is basically evaluating variables correctly acc to their scopes.)
+1) eval -> here eval evaluates the string var b = 3 failing the original scope of b which was b = 2
+eg 1:
+function foo(str, a) {
+	eval( str ); // cheating!
+	console.log( a, b );
+}
+var b = 2;
+foo( "var b = 3;", 1 ); // 1, 3
+
+eg 2:
+function foo(str) {
+	"use strict"; // use of use strict gives error bcoz LHS not accessible
+	eval( str );
+	console.log( a ); // ReferenceError: a is not defined
+}
+foo( "var a = 2" );
+2) with -> with is a short-hand for making multiple property references for an object without repeating the object reference itself each time
+eg: (keep in mind that with modifies a property of object only if it exists)
+function foo(obj) {
+	with (obj) {
+		a = 2;
+		c = 3;
+	}
+}
+var o1 = {
+	a: 3
+};
+var o2 = {
+	b: 3
+};
+foo( o1 );
+console.log( o1.a ); // 2
+foo( o2 );
+console.log( o2.a ); // undefined
+console.log( a ); // 2 -> leaked global -> since a was looked up but not found, with resulted in creating it as a lexical scope
+console.log(c); // 3
+
+SUMMARY OF CHEATING IN LEXICAL SCOPES : eval() can modify existing lexical scope (at runtime) by evaluating a string of "code"
+which has one or more declarations in it. with() creates a whole new lexical scope (again, at runtime) by treating an object 
+reference as a "scope" and that object's properties as scoped identifiers
+
+// Function scope are the only types of scope bubbles that are formed in js.
+function a(){
+    var b = 1;
+    function d(){}
+    var c = 2;
+	console.log(b,c); //1,2 -> function scope
+}
+// out of function scope
+console.log(a, b) //undefined
+d(); //error -> d is not defined
+// Help in hiding -> have some block of code and hide its vars by enclosing it in a function.
+//eg here would be how if a function f() updates a variable b by using some of its other member values, all of which are declared outside the func.
+//hiding would ensure them being private members and inaccessible outside scope
+function f(a){
+	b = a + f1(a*2)
+}
+function f1(a){
+	return a-1
+}
+var b;
+f(2); //16
+more better approach would be : 
+function f(a){
+	b = a + f1(a*2);
+	//private members
+	function f1(a){
+		return a-1
+	}
+	var b;
+}
+f(2); //16
+
+
+// COLLISION AVOIDANCE 
+// Collision avoidance -> means that if a variable is used inside a member function without being declared
+// and it is used outside the member function but inside the function itself too, than the values may collide. -> always declare (use var)
+function foo() {
+	function bar(a) {
+		i = 3; // changing the `i` in the enclosing scope's for-loop-> should be var i = 3 to avoid collision
+		console.log( a + i );
+	}
+	for (var i=0; i<10; i++) {
+		bar( i * 2 ); // infinite loop as i is always 3 which is 3 < 10;
+	}
+}
+foo();
+//global namespaces -> making top-level functionalities as objects of a namespace for unique usage and less collision
+//modules 
+
+
+//FUNCTION SCOPES
+//function declaration : function f(){}f(); , function expression : (function f(){})();
+// anonymous function expression -> easy, fast -> diff to debug, cant call itself, doesnt have a name which reduces readability
+setTimeout( function(){
+console.log("I waited 1 second!");
+}, 1000 );
+// named function expressions -> readable
+setTimeout( function timeoutHandler(){ // <-- Look, I have a name!
+console.log( "I waited 1 second!" );
+}, 1000 );
+
+
+//BLOCK SCOPES
+// just like var i in a for loop, 
+//eg: 1) with, 2) try/catch :
+try {
+undefined(); // illegal operation to force an exception!
+}
+catch (err) {
+console.log( err ); // works!
+}
+console.log( err ); // ReferenceError: `err` not found
+//3) using let -> defines the var for its own block scope , not accessible elsewhere
+eg:
+var foo = true;
+if (foo) {
+{ // <-- explicit block
+let bar = foo * 2; // if you change it to var, it will give 2 as output for both logs
+bar = something( bar );
+console.log( bar ); // accessible here -> 2
+}
+}
+console.log( bar ); // ReferenceError
+//4) garbage collection -> beow code equivalent to for(let i = 0; .....){...}, let re-binds value to i each time, just like :
+{
+let j;
+for (j=0; j<10; j++) {
+let i = j; // re-bound for each iteration!
+console.log( i );
+}
+}
+//5) const -> fixed value which cant be changed, helps in block scoping
+
+
+//HOISTING
+Consider chick and egg problem in comparison with assignment(=) and declaration(var something;) problems.
+
+eg 1: here var a is a declaration which is moved to top of code(think like that) and the assignment is evaluated in place(a = 2 is ok);
+a = 2;
+var a;
+console.log(a) //2
+
+eg 2: here var a is a declaration again hoisted and hence doesnt give reference error, but console.log(a) comes before the assignment line,
+hence it stays undefined as of now. More like a code (var a; console.log(a); a = 2;)
+console.log(a); //undefined
+var a = 2;
+// Note : hoisting is per-scope activity.
+// functions are hoisted, variables are hoisted but function expressions are not hoisted.
+
+eg 3: 
+function foo() {
+var ab;
+console.log( ab ); // undefined
+ab = 2;
+}
+foo();
+console.log(ab); // reference error because of per-scope hoisting, var ab was hoisted but inside the foo function bubble.
+
+eg 4:
+t(); // type error, because function expressions are not hoisted as functions, they are hoisted as ~ var t;
+var t = (function foo(){
+    var a;
+    console.log(a);
+    a = 2;
+});
+
+eg 5:
+foo(); // TypeError -> hoisted as var foo; and not as a function foo();
+bar(); // ReferenceError -> even though you use named expressions, the names are not accessible as they are not hoisted.
+var foo = function bar() {
+// ...
+};
+
+//Function declarations are hoisted above the variable declarations
+eg 6: 
+foo(); // 1
+var foo;
+function foo() {
+console.log( 1 );
+}
+foo = function() {
+console.log( 2 );
+};
+
+// Multiple Function declarations with same name result is misleading results, the last one is given most priority because of overriding.
+eg 7:
+foo(); // 3
+var foo;
+function foo() {
+console.log( 1 );
+}
+foo = function() {
+console.log( 2 );
+};
+function foo() {
+console.log( 3 );
+}
+
+//CLOSURES 
+Closure is when a function is able to remember and access its lexical scope even when that function is executing
+outside its lexical scope.
+eg 1:
+function foo() {
+	var a = 2;
+	function bar() {
+		console.log( a );
+	}
+	return bar; // returns function object that bar references
+}
+var baz = foo();
+baz(); // 2 -> You can explain it as bar() has a closure over foo().
+--> You can explain it as the bas function had access to inner scope of foo, after foo was executed, you might think that the
+ garbage collector will clean up the unused code, but since bar references to the function object which was returned, it had closure
+ over the function foo(), so even if the execution was completed, baz could call the function bar() and access variable a.
+ bar() has access to inner lexical scope of foo() which it can reference anytime.
+ bar() still has reference to the scope, and this scope is what we call closure.
+//Loops and closures
+for (var i=1; i<=5; i++) {
+	setTimeout( function timer(){
+	console.log( i );
+	}, i*1000 );
+} -> prints 6 - 5 times.
+why? setTimeout is a callback function, callback functions execute after the entire function has termianted, 
+since there were 5 callback functions, each of it stores and instance of i in them, that i being actually the same one i for all.
+This is because the lexical scope of the callback function does refer to the lexical scope of for function, 
+but all of them do not have a unique instance of i. After the loop terminates, i has 6 which is actually the scope value for all callbacks.
+Hence the result is 5 outputs each of value 6.
+Try this :
+for (var i=1; i<=5; i++) {
+	(function(){
+		setTimeout( function timer(){
+		console.log( i );
+		}, i*1000 );
+	})(); // This is an iife but it still doesnt give us our sematic results.
+}
+Why? This is because iife does has its own scope, but its an empty scope, it does not have its own copy of i value.
+Answer : 
+for (var i=1; i<=5; i++) {
+	(function(){
+		var j = i;
+		setTimeout( function timer(){
+			console.log( j );
+		}, j*1000 );
+	})();
+} // Now each iife has its own copy of i, for instance you can imagine it like the first function has a copy of i=1 , second has i=2,..
+// Using let just works the code semantically fine. MAGIC. This is because let initializes the i value on each iteration, creating unique
+i values for the callbacks, using the previous iteration value of i.
+for (let i=1; i<=5; i++) {
+	setTimeout( function timer(){
+		console.log( i );
+	}, i*1000 );
+}
+
+//MODULES
+function CoolModule() {
+	var something = "cool";
+	var another = [1, 2, 3];
+	function doSomething() {
+		console.log( something );
+	}
+	function doAnother() {
+		console.log( another.join( " ! " ) );
+	}
+	return {
+		f1: doSomething,
+		f2: doAnother
+	};
+}
+var foo = CoolModule();
+foo.f1(); // cool
+foo.f2(); // 1 ! 2 ! 3
+//You can pass parameters to modules, you can add and modify objects(module reference) defined inside variables
+eg : 
+var foo = (function CoolModule(id) {
+function change() {
+// modifying the public API
+publicAPI.identify = identify2;
+}
+function identify1() {
+console.log( id );
+}
+function identify2() {
+console.log( id.toUpperCase() );
+}
+var publicAPI = {
+change: change,
+identify: identify1
+};
+return publicAPI;
+})( "foo module" );
+foo.identify(); // foo module
+foo.change();
+foo.identify(); // FOO MODULE
+
+
+//Latest type of modules
+module imports an entire module API to a bound variable ( foo , bar in our case). export exports an identifier
+(variable, function) to the public API for the current module
+
+"bar.js"
+function hello(who) {
+return "Let me introduce: " + who;
+}
+export hello;
+
+"foo.js"
+// import only `hello()` from the "bar" module
+import hello from "bar";
+var hungry = "hippo";
+function awesome() {
+console.log(
+hello( hungry ).toUpperCase()
+);
+}
+export awesome;
+
+// import the entire "foo" and "bar" modules
+module foo from "foo";
+module bar from "bar";
+console.log(
+bar.hello( "rhino" )
+); // Let me introduce: rhino
+foo.awesome(); // LET ME INTRODUCE: HIPPO
+
+
+
