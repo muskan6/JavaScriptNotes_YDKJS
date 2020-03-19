@@ -137,16 +137,19 @@ c; // "oof"
 -> number literals mostly expressed as base-10 decimal literals
 var a = 42;
 var b = 42.3;
+
 -> leading and trailing is optional, if 0
 var a = 0.42; 	//0.42
 var b = .42; 	//0.42
 var c = 42.0;	//42
 var d = 42.;	//42
+
 -> extra trailing zeros are removed
 var a = 42.300;
 var b = 42.0;
 a; // 42.3
 b; // 42
+
 -> exponent form
 var a = 5E10;
 a;			// 50000000000
@@ -155,6 +158,7 @@ var b = a * a;
 b;			// 2.5e+21
 var c = 1 / a;
 c;			// 2e-11
+
 -> toFixed(..) : how many fractional decimal places you want
 var a = 42.59;
 a.toFixed( 0 ); // "43"
@@ -162,6 +166,7 @@ a.toFixed( 1 ); // "42.6"
 a.toFixed( 2 ); // "42.59"
 a.toFixed( 3 ); // "42.590" // 0 padded on right hand side
 a.toFixed( 4 ); // "42.5900"
+
 -> toPrecision(..) : how many significant digits you want
 var a = 42.59;
 a.toPrecision( 1 ); // "4e+1"
@@ -170,6 +175,7 @@ a.toPrecision( 3 ); // "42.6"
 a.toPrecision( 4 ); // "42.59"
 a.toPrecision( 5 ); // "42.590"
 a.toPrecision( 6 ); // "42.5900"
+
 -> invalid way of property accessing using '.'
 42.toFixed( 3 );	// SyntaxError -> . got evaluated as a part of numeric literal first, then it evaluates as a property accessor
 // these are all valid:
@@ -177,12 +183,15 @@ a.toPrecision( 6 ); // "42.5900"
 0.42.toFixed( 3 );	// "0.420"
 42..toFixed( 3 );	// "42.000"
 42 .toFixed(3);		// "42.000" : also valid - note the space
+
 -> number can be expressed as exponents
 var onethousand = 1E3;	// means 1 * 10^3
+
 -> numbers can also be expressed in different bases like octa, hexa, etc..
 0xf3; // hexadecimal for: 243 -> doesnt work with es6 + strict mode
 0Xf3; // hexadecimal for: 243
 0363; // octal for: 243
+
 -> use 0x, 0b, 0o for hexa, binary or octal numbers in strict mode
 0o363;		// octal for: 243
 0b11110011;	// binary for: 243 
@@ -201,4 +210,306 @@ numbersCloseEnoughToEqual( a, b );	// true
 
 -> max and min floating points ~~~> Number.MAX_VALUE : 1.798e+308, Number.MIN_VALUE : 5e-324
 -> Safe intereger ranges : integers that can be safely represented , Number.MAX_SAFE_INTEGER : 2^53 - 1 -> 9007199254740991, Number.MIN_SAFE_INTEGER : -9007199254740991
+-> 64 bit numbers are represented using string representations in JS, doesnt come well with number representations
+
+-> Testing for integers
+eg 1 : is integer?
+Number.isInteger( 42 );		// true
+Number.isInteger( 42.000 );	// true
+Number.isInteger( 42.3 );	// false
+
+eg 2 : is safe integer?
+Number.isSafeInteger( Number.MAX_SAFE_INTEGER );	// true
+Number.isSafeInteger( Math.pow( 2, 53 ) );		// false
+Number.isSafeInteger( Math.pow( 2, 53 ) - 1 );		// true
+
+-> bitwise | only works with 32 bit numbers, NaN and Infinity are not 32 bit safe
+
+//Special value values
+-> non value values : null label has value null, undefined label has value undefined.
+		      null is a special keyword, not identifier, but undefined is an identifier.
+-> undefined : use of undefined should be avoided as a variable.
+function foo() {
+	"use strict";
+	var undefined = 2;
+	console.log( undefined ); // 2 -> undefined can be declared as a local variable and used in both strict and non-strict modes
+}
+foo();
+
+-> void operator : anything like void __ gives an undefined value, its like an other way to get undefined in js.
+	--- no practical difference between void 0, void 1, and undefined
+eg:
+var a = 56;
+void a; // undefined
+a; 	// 56
+void null; //undefined
+
+-> Not Number : NaN -> more valid to think as "invalid number," "failed number," or even "bad number," than as "not a number."
+eg :
+var a = 2 / "foo";	
+a;			// NaN
+typeof a === "number";	// true-> typeof NaN is Number
+// NaN is not equal to NaN itself, that means, NaN is not a reflexive number
+a == NaN;	// false
+a === NaN;	// false
+isNaN(a);	// used to check if a number is NaN correctly.
+//But isNaN has a flaw to it : it basically evaluates true is a number is Nan or "not a number", quite literally.
+eg:
+var a = 2 / "foo";
+var b = "foo";
+a; // NaN
+b; // "foo"
+window.isNaN( a ); // true
+window.isNaN( b ); // true -> "foo" is "not a number"
+//To check correctly is a "number" is "NaN" -> use Number.isNaN(..)
+Number.isNaN(a); // true
+Number.isNaN(b); // false -> works fine now.
+
+-> Infinities 
+eg :
+var a = 1 / 0;	
+a;		// Infinity
+var b = -1 / 0;	
+b; 		// -Infinity
+var a = Number.MAX_VALUE;	// 1.7976931348623157e+308
+a + a;				// Infinity
+a + Math.pow( 2, 970 );		// Infinity
+a + Math.pow( 2, 969 );		// 1.7976931348623157e+308
+//weird behaviours
+1/Infinity 	//  0 
+-1/Infinity	// -0
+
+->Zeros : JS has both +0 (positive zeros) and -0 (negative zeros -> can never be resulted by addition or subtraction)
+var a = 0 / -3; // -0
+var b = 0 * -3; // -0
+a.toString() 	// "0" -> -0 as a string shows "0"
+Number(a)	// -0 -> conversion of string "0" back to a number gives us -0
+//comparison operators "lie" while using -0 and 0
+var a = 0;	//positive 0 
+var b = 0 / -3;	//negative -0
+a == b;		// true
+-0 == 0;	// true
+a === b;	// true
+-0 === 0;	// true
+a > b;		// false
+0 > -0;		// false
+//correctly check if a number is a -0
+function isNegZero(n) {
+	n = Number( n );
+	return (n === 0) && (1 / n === -Infinity);
+}
+isNegZero( -0 );	// true
+isNegZero( 0 / -3 );	// true
+isNegZero( 0 );		// false
+//As of ES6, there's a new utility that can be used to test two values for absolute equality, defying all exceptions:Object.is(var1, var2);
+var a = 2 / "foo";
+var b = -3 * 0;
+Object.is( a, NaN );	// true
+Object.is( b, -0 );	// true
+Object.is( b, 0 );	// false
+Object.is("string", NaN)// false
+Object.is(0, -0)	// false
+
+
+//Values and references
+->reference: references are like a special form of pointers, where you obtain a pointer to another variable (like an alias). 
+If you don't declare a reference parameter, the value passed in will always be copied, even if it's a complex object
+eg:
+var a = 2;
+var b = a; // `b` is always a copy of the value in `a`
+b++;
+a; // 2
+b; // 3
+var c = [1,2,3];
+var d = c; // `d` is a reference to the shared `[1,2,3]` value
+d.push( 4 );
+c; // [1,2,3,4]
+d; // [1,2,3,4]
+//Simple values are always assigned/passed by value-copy: null, undefined, string, number, boolean, and ES6's symbol.
+//Compound values : objects (including arrays, and all boxed object wrappers) and functions always create a copy of the reference on assignment or passing.
+//Since reference point to values, not variables, one reference cant change other reference's pointer
+function foo(x) {
+	x.push( 4 );
+	x; // [1,2,3,4]
+	x = [4,5,6];
+	x.push( 7 );
+	x; // [4,5,6,7]
+}
+var a = [1,2,3];
+foo( a );
+a; // [1,2,3,4]  not  [4,5,6,7]
+//To modify the existing array, modify in-place
+function foo(x) {
+	x.push( 4 );
+	x; // [1,2,3,4]
+	x.length = 0; // empty existing array in-place
+	x.push( 4, 5, 6, 7 );
+	x; // [4,5,6,7]
+}
+var a = [1,2,3];
+foo( a );
+a; // [4,5,6,7]  not  [1,2,3,4]
+//To pass a compound object as a value, you need to explicitly ensure that a copy is first made so that the pointing is not at the same location
+foo(a.slice());	// a.slice() without parameters copies the array
+// A reference to a shared number objecr does not let you modify it
+function foo(x) {
+	x = x + 1;
+	x; // 3
+}
+var a = 2;
+var b = new Number( a ); // or equivalently Object(a)
+foo( b );
+console.log( b ); // 2, not 3 
+Why? x = x + 1 implies that when x was evaluated, it changed it from being a shared reference to a Number object, hence b still references to the 2.
+
+
+//Natives
+String(), Number(), Boolean(), Array(), Object(), Function(), RegExp(), Date(), Error(), Symbol() -> All are subtypes of object type
+eg of String() :
+var s = new String( "Hello World!" ); // creates a string wrapper around "Hello World!"
+console.log( s.toString() ); 	// "Hello World!"
+typeof s			// "object"
+s instanceof String		// true
+s instanceof Object 		// true
+s				// String {"Hello world"} -> shows how the String() helped in creating an object
+
+-> Internal [[Class]] property : values having typeof object have an internal [[Class]] property linked to it.  This property cannot be accessed directly, 
+but can generally be revealed indirectly by borrowing the default Object.prototype.toString(..) method called against the value. It mostly refers to the 
+built-in native constructor.
+eg:
+Object.prototype.toString.call( [1,2,3] );	// "[object Array]"-> internal [[Class]] value is array 
+Object.prototype.toString.call( null );		// "[object Null]"
+Object.prototype.toString.call( undefined );	// "[object Undefined]"
+//note that there are no Null() or Undefined() native constructors, but nevertheless the "Null" and "Undefined" are the internal [[Class]] values exposed.
+
+-> Boxing wrappers : since primitive values dont have properties or methods, object wrappers help in adding these functionalities.
+		     It automatically wraps primitive values to get these accessor methods like length, toString().
+//Since there is an automatic boxing, avoid things like new String("abc"), new Number(42), etc, prefer using the literal primitive values "abc" and 42
+
+Imp eg : 
+var a = new Boolean( false );
+if (!a) {
+ console.log( "Oops" ); // never runs 
+}
+-> why? there is an object wrapper on a, but objects have by default truthy value, hence object behaves oppositely to the underlying value.
+
+eg: If you want to manually box a primitive value, then use Object(..) -> new is not needed
+var a = "abc";
+var b = new String( a );
+var c = Object( a );
+typeof a; // "string"
+typeof b; // "object"
+typeof c; // "object"
+b instanceof String; // true
+c instanceof String; // true
+Object.prototype.toString.call( b ); // "[object String]"
+Object.prototype.toString.call( c ); // "[object String]"
+
+-> Unboxing : If you want the value of underlying primitive from the object wrapper, use valueOf() method.
+eg 1:
+var a = new String( "abc" );
+var b = new Number( 42 );
+var c = new Boolean( true );
+a.valueOf(); // "abc"
+b.valueOf(); // 42
+c.valueOf(); // true
+eg 2:
+var a = new String( "abc" );
+var b = a + ""; // b has the unboxed primitive value "abc" -> implicit coercion of object to primitive value
+typeof a; // "object"
+typeof b; // "string"
+
+->Native constructors exist for all object wrappers, but their use might bring exceptions and errors in the code, hence are largely avoided.
+eg :
+var arr = new Array( 1, 2, 3 ); // if you avoid new in this constructor, it would still work same
+a; // [1, 2, 3]
+var b = [1, 2, 3];
+b; // [1, 2, 3]
+
+eg :
+var a = new Array( 3 ); // presize the array ~ not actually presize but setting the length.
+a.length; 	// 3 
+a; 		// shows an array of size 3, all empty elements [ empty x 3 ]
+
+// an array with atleast one empty slot is a sparse array
+eg :
+var a = new Array( 3 ); 
+var b = [ undefined, undefined, undefined ];
+var c = [];
+c.length = 3;
+
+// join(..) works by just assuming the slots exist and looping up to the length value.
+a.join( "-" ); // "--"
+b.join( "-" ); // "--"
+a.map(function(v,i){ return i; }); // [ undefined x 3 ] -> a does not have any elements to iterate on.
+b.map(function(v,i){ return i; }); // [ 0, 1, 2 ]
+
+//creating an array of actual undefined values-> using Array.apply() 
+1) first arguement is the this reference, which is unuseful here so we use null
+2) second arguement is an array or an array like object, contents of which are spread out as arguements to the function here (Array(...))
+--> this means apply is calling Array() function to spread out its value to length : 3
+var a = Array.apply( null, { length: 3 } );
+a; // [ undefined, undefined, undefined ]
+
+-> Object(..)/Function(..)/RegExp(..) : these are optional like other constructors, should be mostly avoided
+egs : 
+var c = new Object(); 				// mostly never used, because then you have to define all object properties one by one
+c.foo = "bar";
+c; // { foo: "bar" }
+var d = { foo: "bar" };
+d; // { foo: "bar" }
+
+var e = new Function( "a", "return a * 2;" );	// only useful when the parameters of a function have to be dynamically decided
+var f = function(a) { return a * 2; };
+function g(a) { return a * 2; }
+
+//Better than other constructors seen so far : the JS engine precompiles and caches them before code execution
+var h = new RegExp( "^a*b+", "g" );		// help to dynamically define the pattern for use
+var i = /^a*b+/g;
+
+
+-> Date() and Error() constructors -> much more useful bcoz there is no literal form for them 
+// Date() : can use Date.now() to get current timestamp details and then create new date, or use getTime()
+eg: var cd = new Date(Date.now())	//Thu Mar 19 2020 12:36:17 GMT+0530 (India Standard Time)
+// Error() : helps in debugging, gives us the current execution stack + function name + the line where error was caused.
+	     They generally have property attached to it, like message, type.
+
+-> Symbol() : introduced in ES6, unique values that can be used as properties on objects, they can be used as property names, 
+	      -> there actual values cant be evaluated in your program/ developer console.
+	      -> Some properties are Symbol.iterator, Symbol.create
+	      -> these are simple scalar primitives, not objects.
+eg:
+var mysym = Symbol( "my own symbol" );
+mysym;				// Symbol(my own symbol)
+mysym.toString();		// "Symbol(my own symbol)"
+typeof mysym; 			// "symbol"
+var a = { };
+a[mysym] = "foobar";
+Object.getOwnPropertySymbols( a );	// [ Symbol(my own symbol) ] -> tells about the symbols object has of its own, as properties to it
+	
+
+-> Native prototypes : each of native constructors have prototype attached to it, ex: Array.prototype, String.prototype
+//String : String.prototype.xyz is converted to String.xyz as shorthand, like:
+String.indexOf(..): find the position in the string of another substring
+String.charAt(..): access the character at a position in the string
+String.substr(..), String.substring(..), and String.slice(..): extract a portion of the string as a new string
+String.toUpperCase() and String.toLowerCase(): create a new string that's converted to either uppercase or lowercase
+String.trim(): create a new string that's stripped of any trailing or leading whitespace
+eg:
+var a = " abc ";
+a.indexOf( "c" ); // 3
+a.toUpperCase(); // " ABC "
+a.trim(); // "abc"
+
+//Since all constructors are actually functions, they have access to apply(..), call(..), and bind(..) because Function.prototype defines them (delegation)
+-> One problem is that prototypes can be modified
+eg:
+Array.prototype 			//[constructor: ƒ, concat: ƒ, copyWithin: ƒ, fill: ƒ, find: ƒ, …]
+Array.isArray( Array.prototype );	// true
+Array.prototype.push( 1, 2, 3 );	// 3
+Array.prototype;			// [1,2,3]
+// reset the Array.prototype to empty to avoid weird behaviour in the script
+Array.prototype.length = 0;
+->Function.prototype is a function, RegExp.prototype is a regular expression, and Array.prototype is an array
+****Note : While we're pointing out these native prototypes and some usefulness, be cautious of relying on them and of modifying them in any way****
 
