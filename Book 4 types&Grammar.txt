@@ -511,5 +511,6 @@ Array.prototype;			// [1,2,3]
 // reset the Array.prototype to empty to avoid weird behaviour in the script
 Array.prototype.length = 0;
 ->Function.prototype is a function, RegExp.prototype is a regular expression, and Array.prototype is an array
+
 ****Note : While we're pointing out these native prototypes and some usefulness, be cautious of relying on them and of modifying them in any way****
 
