@@ -1,0 +1,204 @@
+// Types
+42 -> number
+"42" -> string
+
+// JavaScript defines seven built-in types:
+null, undefined, boolean, number, string, object, symbol -- added in ES6!
+-> except object, all of these are primitive
+//typeof operator tells the type of a given value
+typeof undefined     === "undefined"; // true
+typeof true          === "boolean";   // true
+typeof 42            === "number";    // true
+typeof "42"          === "string";    // true
+typeof { life: 42 }  === "object";    // true
+typeof Symbol()      === "symbol";    // true -> added in ES6!
+typeof function a(){ /* .. */ } === "function"; // true -> a "callable object", an object that has an internal [[Call]] property allowing it to be invoked.
+typeof [1,2,3] 	     === "object";    // true
+typeof null          === "object";    //true -> buggy behaviour
+
+//In JS, values have types, not variables.
+-> The typeof operator always returns a string. So:
+	eg: typeof typeof 42; // "string" -> typeof (typeof 42) -> typeof ("number") -> string.
+
+//Undefined and Undeclared -> typeof variables which dont have a value is always undefined
+eg:
+var a;
+typeof a; // "undefined"
+var b = 42;
+var c;
+// later
+b = c;
+typeof b; // "undefined"
+typeof c; // "undefined"
+
+// undefined : a variable declared but has no value, undeclared : a variable which has not been declared formally in the accessible scope
+eg 1 :
+var a;
+a; // undefined
+b; // ReferenceError: b is not defined
+eg 2 :
+var a;
+typeof a; // "undefined"
+typeof b; // "undefined"
+
+//best way for existence check of any variable using typeof
+var DEBUG ; 
+if (typeof DEBUG !== "undefined") {
+	console.log( "Debugging is starting" );
+}
+// until DEBUG has a value to it, the output will be undefined.
+
+
+//Arrays : don't need to presize arrays, can declare and add later, also can have any type of values.
+eg 1:
+var a = [ ];
+a.length;	// 0
+a[0] = 1;
+a[1] = "2";
+a[2] = [ 3 ];
+a.length;	// 3
+
+eg 2: delete removes the element value but adds an empty value at its place, hence the length of arr remains same -> this creates sparse arrays
+var arr = [1,2, {v:"v"}, "str"];
+delete arr[1] 		// true
+console.log(arr) 	// (4) [1, empty, {…}, "str"]
+console.log(arr[1]) 	// undefined -> removed element when accessed after deletion shows undefined
+arr.length 		// 4
+
+eg 3: string index gets coerced as a base 10 number and gets evaluated as an index, whereas string assignments act as array properties and dont affect length
+var a = [ ];
+a["13"] = 42;
+a.length; 	// 14
+a["hello"] = "world"
+a 		// (14) [empty × 13, 42, hello: "world"]
+a.length	// 14
+
+eg 4: if slice(..) is called without any parameters, it duplicates the array
+function foo() {
+	var arr = Array.prototype.slice.call( arguments );
+	arr.push( "bam" );
+	console.log( arr );
+}
+foo( "bar", "baz" ); // ["bar","baz","bam"]
+-> Arrays.from() also does same type of work : covered later
+->other array methods: indexOf(..), concat(..), forEach(..)
+
+//Strings
+-> similarities b/w string and array
+var a = "foo";
+var b = ["f","o","o"];
+a.length;		// 3
+b.length;		// 3
+a.indexOf( "o" );	// 1 -> first index
+b.indexOf( "o" );	// 1
+var c = a.concat( "bar" );		// "foobar"
+var d = b.concat( ["b","a","r"] );	// ["f","o","o","b","a","r"]
+a === c;		// false
+b === d;		// false
+a;			// "foo"
+b;			// ["f","o","o"]
+//JS strings are immutable, arrays are mutable
+a[1] = "O";
+b[1] = "O";
+a; // "foo"
+b; // ["f","O","o"]
+//Inplace modifications of strings are not possible unless you create new strings
+var c = a.toUpperCase();
+a === c;	// false
+a;			// "foo"
+c;			// "FOO"
+//Array methods can be applied on strings by converting them to arrays first
+a.join;			// undefined
+a.map;			// undefined
+var c = Array.prototype.join.call( a, "-" );
+var d = Array.prototype.map.call( a, function(v){
+	return v.toUpperCase() + ".";
+} ).join( "" );
+c;				// "f-o-o"
+d;				// "F.O.O."
+//reverse method of array can't be applied to strings, bcoz strings are immutable and cant be modified in place
+a.reverse;		// undefined
+b.reverse();	// ["!","o","O","f"]
+b;		// ["!","o","O","f"]
+Array.prototype.reverse.call( a ); // wrong -> gives error
+// One way is to convert string to array, perform reverse, then convert it back to string -> provided the string doesnt have complex chars
+var c = a
+	// split a into an array of characters
+	.split( "" )
+	// reverse the array of characters
+	.reverse()
+	// join the array of characters back to a string
+	.join( "" );
+c; // "oof"
+//best way is to store strings as arrays and use join() to use them as string representations whenever necessary
+
+
+//Numbers : considers both 42.1 and 42 as integer, all these are given a common type number. It contains floating-point representation.
+-> number literals mostly expressed as base-10 decimal literals
+var a = 42;
+var b = 42.3;
+-> leading and trailing is optional, if 0
+var a = 0.42; 	//0.42
+var b = .42; 	//0.42
+var c = 42.0;	//42
+var d = 42.;	//42
+-> extra trailing zeros are removed
+var a = 42.300;
+var b = 42.0;
+a; // 42.3
+b; // 42
+-> exponent form
+var a = 5E10;
+a;			// 50000000000
+a.toExponential();	// "5e+10"
+var b = a * a;
+b;			// 2.5e+21
+var c = 1 / a;
+c;			// 2e-11
+-> toFixed(..) : how many fractional decimal places you want
+var a = 42.59;
+a.toFixed( 0 ); // "43"
+a.toFixed( 1 ); // "42.6"
+a.toFixed( 2 ); // "42.59"
+a.toFixed( 3 ); // "42.590" // 0 padded on right hand side
+a.toFixed( 4 ); // "42.5900"
+-> toPrecision(..) : how many significant digits you want
+var a = 42.59;
+a.toPrecision( 1 ); // "4e+1"
+a.toPrecision( 2 ); // "43"
+a.toPrecision( 3 ); // "42.6"
+a.toPrecision( 4 ); // "42.59"
+a.toPrecision( 5 ); // "42.590"
+a.toPrecision( 6 ); // "42.5900"
+-> invalid way of property accessing using '.'
+42.toFixed( 3 );	// SyntaxError -> . got evaluated as a part of numeric literal first, then it evaluates as a property accessor
+// these are all valid:
+(42).toFixed( 3 );	// "42.000"
+0.42.toFixed( 3 );	// "0.420"
+42..toFixed( 3 );	// "42.000"
+42 .toFixed(3);		// "42.000" : also valid - note the space
+-> number can be expressed as exponents
+var onethousand = 1E3;	// means 1 * 10^3
+-> numbers can also be expressed in different bases like octa, hexa, etc..
+0xf3; // hexadecimal for: 243 -> doesnt work with es6 + strict mode
+0Xf3; // hexadecimal for: 243
+0363; // octal for: 243
+-> use 0x, 0b, 0o for hexa, binary or octal numbers in strict mode
+0o363;		// octal for: 243
+0b11110011;	// binary for: 243 
+0xf3;		// hexa for: 243
+
+-> small decimal values
+0.1 + 0.2 === 0.3; // false -> 0.1 + 0.2 evaluates close to 0.30000000000000004 
+	--  you need to be more careful, especially when dealing with fractional decimal values
+soln to this is Number.EPSILON ~> Math.pow(2, -52) -> rounding error tolerance
+function numbersCloseEnoughToEqual(n1,n2) {
+	return Math.abs( n1 - n2 ) < Number.EPSILON;
+}
+var a = 0.1 + 0.2;
+var b = 0.3;
+numbersCloseEnoughToEqual( a, b );	// true
+
+-> max and min floating points ~~~> Number.MAX_VALUE : 1.798e+308, Number.MIN_VALUE : 5e-324
+-> Safe intereger ranges : integers that can be safely represented , Number.MAX_SAFE_INTEGER : 2^53 - 1 -> 9007199254740991, Number.MIN_SAFE_INTEGER : -9007199254740991
+
