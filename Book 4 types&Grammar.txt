@@ -514,3 +514,1318 @@ Array.prototype.length = 0;
 
 ****Note : While we're pointing out these native prototypes and some usefulness, be cautious of relying on them and of modifying them in any way****
 
+
+// ******COERCION******
+-> Converting values : called type-casting while explicit conversions, coercion while implicit conversions.
+			coercions always results in scalar primitive(string/boolean/number) values, not in complex values(object/function) 
+			type-casting : occur in statically typed languages, done at compile time
+			type-coercion: occur in dynamically typed languages, done at run time
+eg: types of coercion
+var a = 42;
+var b = a + "";		// implicit coercion
+var c = String( a );	// explicit coercion
+
+//Abstract operations : ToString, ToBoolean, ToNumber, ToPrimitive
+			primitive values like null, undefined, true are often present as string itself : "null", "undefined", "true"
+
+
+1) TOSTRING
+eg 1: using toString() for string conversions
+// multiplying 1.07 by 1000, seven times over
+var a = 1.07 * 1000 * 1000 * 1000 * 1000 * 1000 * 1000 * 1000;
+// seven times three digits => 21 digits
+a.toString(); // "1.07e21"
+
+eg 2: if an object has its own toString() implementation, then calling toString() will call its implemented function, and not the default one.
+var obj = {
+x: "x",
+y: "y"
+}
+obj.toString();		// "[object Object]" -> when default toString() of Object.prototype.toString() is called.
+obj.toString = function f(){		// can also be set as obj.prototype.toString = ...
+    return this.x + " " + this.y;
+}
+obj.toString();		// "x y" -> when you have implemented your own toString() on an object
+
+eg 3: arrays in js have a default toString() which joins the array elements using "," and then returns a string
+var a = [1,2,3];
+a.toString(); 		// "1,2,3"
+
+//JSON stringification : serialize a value to be JSON - compatible string value, JSON.stringify(..) always results in a string
+eg 4:
+JSON.stringify( 42 );	// "42"
+JSON.stringify( "42" );	// ""42"" (a string with a quoted string value in it)
+JSON.stringify( null );	// "null"
+JSON.stringify( true );	// "true"
+
+-> and JSON safe value can be JSON stringified, safe value ~ value that can be validly represented as JSON value
+-> illegal values in JSON : undefined s, function s, symbol s and object s having circular references are not JSON safe
+-> JSON.stringify hence simple ignore undefined, function and any such values, if an array has undefined, it replaces it with null. If an object has undefined, it is simply ignored.
+eg 5:
+JSON.stringify( undefined );				// undefined
+JSON.stringify( function(){} );				// undefined
+JSON.stringify( [1,undefined,function(){},4] );		// "[1,null,null,4]"
+JSON.stringify( { a:2, b:function(){} } );		// "{"a":2}"
+
+-> JSON.stringify gives an error if any object with circular reference is passed to it.
+eg 6:
+function Foo() {
+  this.abc = "Hello";
+  this.circular = this;
+}
+var foo = new Foo();
+JSON.stringify(foo);
+// gives this error  :  Uncaught TypeError: Converting circular structure to JSON --> starting at object with constructor 'Foo'
+    			--- property 'circular' closes the circle at JSON.stringify (<anonymous>)
+
+-> if your object has a toJSON() method, then it will be given preference. These are mostly used when an object contains JSON-unsafe data, so the toJSON()
+ defined explicitly for that method may help in creating JSON-Safe data values
+eg 7:
+var o = { };
+var a = {
+	b: 42,
+	c: o,
+	d: function(){}
+};
+// create a circular reference inside a
+o.e = a;
+// would throw an error on the circular reference
+// JSON.stringify( a ); -> gives TypeError as in eg 6
+// define a custom JSON value serialization
+a.toJSON = function() {
+	// only include the `b` property for serialization
+	return { b: this.b };
+};
+JSON.stringify( a ); // "{"b":42}"
+
+//correct way to implement it : toJSON() should return the actual regular value that's appropriate, and JSON.stringify(..) itself will handle stringification
+   => toJSON() should be interpreted as "to a JSON-safe value suitable for stringification", not "to a JSON string" as many developers mistakenly assume.
+eg 8:
+var a = {
+	val: [1,2,3],
+
+	// probably correct!
+	toJSON: function(){
+		return this.val.slice( 1 );
+	}
+};
+var b = {
+	val: [1,2,3],
+
+	// probably incorrect!
+	toJSON: function(){
+		return "[" +
+			this.val.slice( 1 ).join() +
+		"]";
+	}
+};
+JSON.stringify( a ); 	// "[2,3]"
+JSON.stringify( b ); 	// ""[2,3]""
+
+//An optional second parameter called replacer can be included in JSON.stringify, it can be either array or function.
+1) if its an array, all the properties listed in the array will be stringified, properties which are in object and not in array, or vice versa, are skipped.
+2) if its a function, it will be called once for an object which will call once for each property, it will have a key value pair accessing, and if you want
+   to skip any key, simply return undefined as its value, else return the actual value of that key.
+eg 9:
+var a = {
+	b: 42,
+	c: "42",
+	d: [1,2,3]
+};
+JSON.stringify( a, ["b","c"] ); 	// "{"b":42,"c":"42"}" -> d is excluded
+JSON.stringify( a, function(k,v){
+	if (k !== "c") return v;
+}); 					// "{"b":42,"d":[1,2,3]}" -> for c, we returned undefined.
+
+//An optional third parameter is also available in JSON.stringify called space, which is either a number(how many spaces should be included for indentation)
+or a string(which will be present in place of spaces in indentation)
+eg 10:
+var a = {
+	b: 42,
+	c: "42",
+	d: [1,2,3]
+};
+JSON.stringify( a, null, 3 );
+output : 
+"{
+   "b": 42,
+   "c": "42",
+   "d": [
+      1,
+      2,
+      3
+   ]
+}"
+var a = {
+	b: 42,
+	c: "42",
+	d: [1,2,3]
+};
+JSON.stringify( a, null, "--" );
+output : 
+"{
+--"b": 42,
+--"c": "42",
+--"d": [
+----1,
+----2,
+----3
+--]
+}"
+
+*** JSON.stringify is not a form of coercion directly, but reasons: 
+1) toJSON() coerces to JSON-safe data, 
+2) string, boolean, number, etc all coerce to JSON just as they would to string. ***
+
+
+2)TONUMBER : conversion of any non number data to number for usage
+For example, true becomes 1 and false becomes 0. undefined becomes NaN, but (curiously) null becomes 0, 
+0-prefixed octal numbers are not handled as octals though they are valid number literals.
+->Objects/arrays -> primitive value equivalent -> coerced to number using ToNumber rules
+For coercion in step 3, the ToPrimitive valueOf() is checked, if it exists, it is used to provide value for coercion, else toString() is used to provide
+ value, else TypeError is shown
+eg 1:
+var a = {
+	valueOf: function(){
+		return "42";
+	}
+};
+var b = {
+	toString: function(){
+		return "42";
+	}
+};
+var c = [4,2];
+c.toString = function(){
+	return this.join( "" );	// "42"
+};
+Number( a );			// 42
+Number( b );			// 42
+Number( c );			// 42
+Number( "" );			// 0
+Number( [] );			// 0
+Number( [ "abc" ] );		// NaN
+
+ 
+3)TOBOOLEAN : you can coerce 1 to true, 0 to false, but they are not the same.
+Two categories in js for booleans: ones that convert to false if coerced to boolean, all other are true.
+Falsy list : undefined, null, false, +0, -0, and NaN, "" -> values that coerce to false
+
+-> False objects
+eg: Objects by default give truthy, then what is falsy objects.
+var a = new Boolean( false );
+var b = new Number( 0 );
+var c = new String( "" );
+var d = Boolean( a && b && c );
+d; 	// true -> this means that all a, b, c are true.
+//But this was not a falsy object, just to clarify. So a falsy object is an object that looks like a normal object, added by browsers, 
+but coerces to false when converted to a boolean value. eg: document.all -> Boolean(document.all) gives false : a falsy object in JS.
+	document.all is deprecated but cant be removed -> kind of like a bug.
+
+->Truthy objects 
+A value is truthy if its not on the falsy list. 
+eg 1:
+var a = "false";
+var b = "0";
+var c = "''";
+var d = Boolean( a && b && c );
+d;	//true -> the values do appear to be false but in general all the string values convert to true, hence truthy values.
+eg 2:
+var a = [];				// empty array -- truthy or falsy?
+var b = {};				// empty object -- truthy or falsy?
+var c = function(){};	// empty function -- truthy or falsy?
+var d = Boolean( a && b && c );
+d;	//true -> the values do appear to be empty but since these are not in the falsy list, they evaluate as the truthy list values -> d is hence true.
+
+-> EXPLICIT COERCIONS : are obvious and explicit conversions
+1) String <--> Number : use String() and Number(), we do not use the new keyword in front of them because we're not creating object wrappers
+eg 3:
+var a = 42;
+var b = String( a ); 
+var c = "3.14";
+var d = Number( c ); 
+b; // "42"
+d; // 3.14
+
+eg 4:
+var a = 42;
+var b = a.toString();	// "explicitly implicit" -> 42 is boxed to object (implicit), then object executes its toString (explicit)
+var c = "3.14";
+var d = +c;		// unary + explicitly coerces its operand to a number value.
+b; // "42"
+d; // 3.14
+
+//+c
+eg 5:
+var c = "3.14";
+var d = 5+ +c;
+d; // 8.14
+
+//-c : unary - also performs coercion like unary +, but converts the number to a negative number. -- converts it back positive.
+eg 6:
+1 + - + + + - + 1;	// 2
+
+//some combinations:
+eg 7:
+var a = 1;
+var b = 1;
+a +++b		//2 -> (a++) + b 
+b		//1
+a		//2
+a + ++b		//4 -> a + (++b)
+a + + +b	//4 -> a + (+(+b))
+
+2)Date to Number
+eg 8:
+var d = new Date( "Mon, 18 Aug 2014 08:53:06 CDT" );
++d; // 1408369986000 -> unix timestamp
+var timestamp = +new Date(); // () is optional if there are no arguements.
+//Use Date.now() for current now timestamps, and new Date( .. ).getTime() for getting a timestamp of a specific non-now date/time that you need to specify.
+
+eg 9: ToInt32 conversions : numbers which are not specifiable in 32 bits, ToInt32 coeces them to 0.
+0 | -0;		// 0
+0 | NaN;	// 0
+0 | Infinity;	// 0
+0 | -Infinity;	// 0
+
+eg 10: ~x is roughly the same as -(x+1) -> why ~ ? ~(-1) = 0, mainly used by developers. => its actually a bitwise operation
+~42;		// -(42+1) ==> -43
+var a = "Hello World";
+~a.indexOf( "lo" );		// -4   <-- truthy!
+if (~a.indexOf( "lo" )) {	// true
+	// found it!
+}
+~a.indexOf( "ol" );		// 0    <-- falsy!
+!~a.indexOf( "ol" );		// true
+if (!~a.indexOf( "ol" )) {	// true
+	// not found!
+}
+
+eg 11: ~~ is used to truncate decimal part of a number -> works like Math.floor(), but doesnt work on negative numbers for Math.floor()
+~~14.4 			//14
+~~14.8 			//14
+Math.floor(14.8)	//14
+~~(-14.8) 		//-14
+Math.floor(-14.8)	//-15
+// ~~ works is that the first ~ applies the ToInt32 "coercion" and does the bitwise flip, and then the second ~ does another bitwise flip, 
+flipping all the bits back to the original state
+
+3)Parsing number strings
+var a = "42";
+var b = "42px";
+Number( a );		//42
+parseInt( a );		//42
+Number( b );		//NaN
+parseInt( b );		//42
+parseInt("3.f45")	//3 -> parseInt gives the number even after having non-numeric characters in the string 
+Number("3g.45f")	//NaN -> coercion gives NaN after having non-numeric characters in the string 
+//Coerce a string only when it can be numerically accepted, 42px should not be accepted as string for coercion to number.
+parseInt(..) only operates on string values, it doesn't make sense passing null, undefined, function(){..}, etc.. to it.
+
+//parseInt(..) and Number(..) (coercions) work fine when the first two characters are like "0x" or "0X" -> it tells them that it might be a hex value..
+eg 1:
+parseInt("0xf3")	//243
+Number("0xf3")		//243
+Number("0b1011")	//11
+parseInt("0b1011")	//0 
+parseInt("0o1011")	//0
+Number("0o1011")	//521
+//parseInt(..) suprisingly doesnt work with 0o for octal or 0b for binary. Coercion meanwhile works properly.
+
+eg 2: parseInt forcibly coerces its value to string to perform parse
+parseInt( new String( "42") ); //returns 42 even when it is a non-string value.
+var a = {
+	num: 21,
+	toString: function() { return String( this.num * 2 ); }
+};
+parseInt( a ); 			//returns 42 even when it is a non-string, but object value.
+
+//Base-19 in JS : the valid numeric characters are 0 - 9 and a - i (case insensitive)
+eg:
+parseInt( 1/0, 19 ) 	//18 -> why? conversion of "Infinity" in base-19, as 1/0 evaluates as "Infinity"
+I -> 18, n is not a valid value in base 19, so the parseInt(..) stops at this non-numeric character and the result is 18.
+Other examples :
+parseInt( 0.000008 );		// 0   ("0" from "0.000008")
+parseInt( 0.0000008 );		// 8   ("8" from "8e-7")
+parseInt( false, 16 );		// 250 ("fa" from "false")
+parseInt( parseInt, 16 );	// 15  ("f" from "function..")
+parseInt( "0x10" );		// 16
+parseInt( "103", 2 );		// 2
+
+
+4) Non boolean to boolean conversion
+//Some common examples:
+eg 1:
+var a = "0";
+var b = [];
+var c = {};
+var d = "";
+var e = 0;
+var f = null;
+var g;
+Boolean( a ); // true
+Boolean( b ); // true
+Boolean( c ); // true
+Boolean( d ); // false
+Boolean( e ); // false
+Boolean( f ); // false
+Boolean( g ); // false
+
+//Just like unary + coerces value to number, unary ! coerces a value to boolean, but it also flips value, say from truthy to falsy => soln is a !! 
+eg 2:
+var a = "0";
+var b = [];
+var c = {};
+var d = "";
+var e = 0;
+var f = null;
+var g;
+!!a;	// true
+!!b;	// true
+!!c;	// true
+!!d;	// false
+!!e;	// false
+!!f;	// false
+!!g;	// false
+
+eg 3:
+var a = [
+	1,
+	function(){ /*..*/ },
+	2,
+	function(){ /*..*/ }
+];
+JSON.stringify( a ); // "[1,null,2,null]"
+JSON.stringify( a, function(key,val){
+	if (typeof val == "function") {
+		// force `ToBoolean` coercion of the function
+		return !!val;
+	}
+	else {
+		return val;
+	}
+} );
+// "[1,true,2,true]"
+
+eg 4: In this example, implicit conversion of a happens in the statement involving ternary operation.
+var a = null;
+var b = a? true : false
+b		//false
+var a = undefined;
+var b = a? true : false
+b		//false
+var a = 42;
+var b = a? true : false
+b		//true
+
+
+-> IMPLICIT COERCIONS : hidden and non-obvious side-effect resulting coercions -> makes code harder to understand
+SomeType x = SomeType(AnotherType(y)) ====> SomeType x = SomeType(y) : here AnotherType(y) is a hidden coercion which makes code easier if implemented itself.
+1) Strings <-> Numbers
+eg 1:
+var a = "42";
+var b = "0";
+a + b; 		// "420"
+var c = 42;
+var d = 0;
+c + d; 		// 42
+eg 2:
+var a = [1,2];
+var b = [3,4];
+a + b; 		// "1,23,4" -> none of a or b was string, but they were coerced to string and string concatenation happened. 
+why? The + algorithm (when an object value is an operand) will concatenate if either operand is either already a string, or if the following steps 
+produce a string representation. When + receives an object (including array) for either operand, it first calls the ToPrimitive abstract operation on 
+the value, it then calls the [[DefaultValue]] algorithm with a context hint of number.
+This operation is now identical to how the ToNumber abstract operation, the valueOf() operation on the array will fail to produce a simple primitive, 
+so it then falls to a toString() representation. The two arrays thus become "1,2" and "3,4", respectively.
+Now, + concatenates the two strings as you'd normally expect: "1,23,4";
+If either operand in + is a string, it will be a string concatenation, else it will be a numeric concatenation.
+**first valueOf() is evaluated, if not valid/ not found, then toString()**
+
+unknown behaviour :
+[] + {} 	// "[object Object]"
+{} + []		// 0
+
+eg 2: 
+var a = 42;
+var b = a + "";
+b; // "42"
+// Numeric addition is commutative, string addition is not.
+
+eg 3: If we use an object instead of a regular primitive value, and it has its own implementation of valueOf and toString, the results of + might be diff.
+var a = {
+	valueOf: function() { return 42; },
+	toString: function() { return 4; }
+};
+a + "";		// "42"
+String( a );	// "4" 
+
+eg 4: '-', '*' and '/' operators are defined only for numeric purposes, so there is an implicit coercion from string to number so that '-' can be performed.
+var a = "3.14";
+var b = a - 0;
+b; 	// 3.14
+//even if we use object values, the objects are first coerced to strings, which are further coerced to number to perform the '-' operation.
+var c = [3];
+var d = [1];
+c-d; 	// 2
+
+
+2) Boolean -> Number
+eg 1: This program returns true only if one arguement is true, here we see that implicit coercion is used for truthy checks, and explicit for all others.
+//If these were more than handleable, lets say more than 20 variables, then this algo generation would have been difficult.
+function onlyOne(a,b,c) {
+	return !!((a && !b && !c) ||
+		(!a && b && !c) || (!a && !b && c));
+}
+var a = true;
+var b = false;
+onlyOne( a, b, b );	// true
+onlyOne( b, a, b );	// true
+onlyOne( a, b, a );	// false
+*BETTER SOLUTION* : conversion of boolean to numeric values.
+function onlyOne() {
+	var sum = 0;
+	for (var i=0; i < arguments.length; i++) {
+		// skip falsy values. same as treating them as 0's, but avoids any NaN
+		if (arguments[i]) {
+			sum += arguments[i];
+		}
+	}
+	return sum == 1;
+}
+var a = true;
+var b = false;
+onlyOne( b, a );		// true
+onlyOne( b, a, b, b, b );	// true
+onlyOne( b, b );		// false
+onlyOne( b, a, b, b, b, a );	// false
+*EXPLICIT SOLUTION*
+function onlyOne() {
+	var sum = 0;
+	for (var i=0; i < arguments.length; i++) {
+		sum += Number( !!arguments[i] ); // first !! converts value to a proper valid boolean value and then Number helps in numeric conversion
+	}
+	return sum === 1;
+}
+
+
+3) Non - boolean to boolean values
+//The test expressions in loops, ternary expressions, || and && are usually forced to be evaluated to a boolean value for result generation.
+Values in these expressions which are not boolean will be automatically/ implicitly coerced to boolean using the ToBoolean abstract operation.
+eg:
+var a = 42;
+var b = "abc";
+var c;
+var d = null;
+if (a) {
+	console.log( "yep" );		// yep -> Boolean(42) = true
+}
+
+if (c) {
+	console.log( "nope, never runs" );	// -> Boolean(undefined) = false (console.log(c) gives undefined)
+}
+
+c = d ? a : b;
+c;					// "abc" -> Boolean(null) = false
+
+if ((a && d) || c) {
+	console.log( "pep" );		// yep -> Boolean(C) = Boolean("abc") = true
+}
+
+
+4) Operators || and && : In js, these operators are a bit tricky.
+//The value produced by a && or || operator is not necessarily of type Boolean. 
+//The value produced will always be the value of one of the two operand expressions.
+eg:
+var a = 42;
+var b = "abc";
+var c = null;
+a || b;		// 42
+a && b;		// "abc"
+c || b;		// "abc"
+c && b;		// null
+Why?
+1) In JS, || means that first it will evaluate the first operand and coerce to its boolean value. 
+If truthy, it gives true output, else checks the second operand and then gives the result.
+2) && means that first it will evaluate the first operand and coerce to its boolean value, if truthy, will check the second operand.
+If found falsy, it will give a false result, without checking the second operand.
+3) In c&&b, c is null which is falsy, but still && results in a null. Why is this ? -> A weird behaviour of && in JS.
+So:
+a || b; // roughly equivalent to: a ? a | b;  
+a && b; // roughly equivalent to: a ? b : a;
+(only if a and b are not complex, else for instance if a was a function, it might need multiple instances of it being called and evaluated to give the correct truthy or falsy value.)
+
+eg:
+function foo(a,b) {
+	a = a || "hello";
+	b = b || "world";
+
+	console.log( a + " " + b );
+}
+
+foo();			// "hello world"
+foo( "yeah", "yeah!" );	// "yeah yeah!"
+foo( "yeah", "" );	// "yeah world"
+
+//The && operator "selects" the second operand if and only if the first operand tests as truthy, and this usage is sometimes called the "guard operator" bcoz 
+the first expression test "guards" the second expression
+eg :
+function foo() {
+	console.log( a );
+}
+var a = 42;
+a && foo(); 	// 42 
+-> foo() gets called only because a tests as truthy. If falsy, a && foo() expression statement would just silently stop which is known as "short circuiting",
+	 which would result in foo() never being called.
+
+
+5) Symbol coercions : JS allows explicit Symbol -> String coercions, but not implicit Symbol -> String coercions and throws error.
+eg :
+var s1 = Symbol( "cool" );
+String( s1 );			// "Symbol(cool)"
+var s2 = Symbol( "not cool" );
+s2 + "";			// Type error -> cannot conver symbol to string
+
+
+// *** Loose Equals(==) vs Strict Equals(===) ***
+-> We earlier said that == checks value but === checks for value + type. Well this is actually a wrong def.
+
+-> == allows coercion and === disallows coercion, is the real def.
+
+-> There is no such thing as equality perfomance of which one is better, though coercion takes time but it's merely microseconds, 
+and hence doesnt make == any slower.
+
+-> Abstract equality 
+	--> If two values are being compared of same type, they are equated by their identity, eg: "abc" is only equal to "abc", so is 42 to 42.
+		Exceptions: NaN is never equal to itself, +0 and -0 are equal to each other. 
+	--> If two values being compared are actually objects (or functions), they are equal only if they have the same reference. No coercion is done.
+		eg :
+		var a = {
+    			x:"X"
+		}
+		var b = Object.create(a);
+		a == b; 	//false
+		var c = a;
+		a == c;		//true
+	--> == and === behave same when it comes to object comparison.
+	--> != is actually equivalent to == operation, and then negation of its result. Similarly, !== is negation of result by === operation.
+
+-> String to Number comparison
+eg :
+var a = 42;
+var b = "42";
+a === b;	// false -> no coercion allowed, valid that answer is false.
+a == b;		// true	-> coercion was done, but was it "42" == "42" or 42 == 42?
+**If Type(x) is Number and Type(y) is String, return the result of the comparison x == ToNumber(y).
+**If Type(x) is String and Type(y) is Number, return the result of the comparison ToNumber(x) == y.
+=> So a == b was actually coerced to 42 == 42 which gave true.
+
+-> Comparing anything to boolean 
+eg :
+var a = "42";
+var b = true;
+a == b;		// false -> why?
+**If Type(x) is Boolean, return the result of the comparison ToNumber(x) == y.
+**If Type(y) is Boolean, return the result of the comparison x == ToNumber(y).
+Here, a == b evaluated first to "42" == ToNumber(true) => "42" == 1 which was further coerced to ToNumber("42") == 1 => 42 == 1 which is in fact false.
+(coercion is happening recursively until all values are resolved) 
+So the trick here is that you might think that it should be a boolean conversion of "42" to truthy, which is indeed true as Boolean("42") = true,
+but here what is happening is not a boolean coercion of "42" to true, but a number coercion of true to 1 and then "42" to 42 (as seen in string->number conversion)
+*Remember (false is 0 and true is 1 in ToNumber coercion) 
+
+-> Heirarchy of worst to best practices for boolean coercion
+var a = "42";
+// bad (will fail!):
+if (a == true) {
+	// ..
+}
+// also bad (will fail!):
+if (a === true) {
+	// ..
+}
+// good enough (works implicitly):
+if (a) {
+	// ..
+}
+// better (works explicitly):
+if (!!a) {
+	// ..
+}
+// also great (works explicitly):
+if (Boolean( a )) {
+	// ..
+}
+
+-> Comparing null and undefined: In general, implicit coercion is better than explicit while working with null/ undefined
+**If x is null and y is undefined, return true.
+**If x is undefined and y is null, return true.
+eg : While using ==, null and undefined are indistinguishable
+var a = null;
+var b;
+a == b;		// true
+a == null;	// true
+b == null;	// true
+a == false;	// false
+b == false;	// false
+a == "";	// false
+b == "";	// false
+a == 0;		// false
+b == 0;		// false
+
+-> Comparing objects to non-objects (primitives)
+**If Type(x) is either String or Number and Type(y) is Object, return the result of the comparison x == ToPrimitive(y).
+**If Type(x) is Object and Type(y) is either String or Number, return the result of the comparison ToPrimitive(x) == y.
+ ---> Why not boolean with string and number ? Because as we saw in Boolean coecion above, Boolean are first coerced to Number .
+
+eg 1: (Make sure you remember valueOf() and toString() coercions)
+var a = 42;
+var b = [ 42 ];
+a == b;		// true -> this means that [42] used ToPrimitive coercion, and returned "42" , which further coerced and became 42 == 42 giving true.
+
+eg 2:
+var a = "abc";
+var b = Object( a );	// same as new String( a ) 
+a === b;		// false
+a == b;			// true -> b is coerced to "abc" because of its ToPrimitive 
+
+eg 3: Remember that null and undefined can never be boxed, and NaN is never equal to itself.
+var a = null;
+var b = Object( a );	// same as Object()
+a == b;			// false
+var c = undefined;
+var d = Object( c );	// same as Object()
+c == d;			// false
+var e = NaN;
+var f = Object( e );	// same as new Number( e )
+e == f;			// false
+
+
+//EDGE CASES
+eg 1:
+Number.prototype.valueOf = function() {
+	return 3;
+};
+new Number( 2 ) == 3;	// true -> new Number (2) goes through coercion and hence calls its valueOf
+
+eg 2:
+if (a == 2 && a == 3) {
+	// ..
+}
+// a == 2 and a == 3 can never be true at the same time. Not really !!
+var i = 2;
+Number.prototype.valueOf = function() {
+	return i++;
+};
+var a = new Number( 42 );
+if (a == 2 && a == 3) {
+	console.log( "Yep, this happened." ); // Yep, this happened.
+}
+i; 	// 4
+
+
+eg 3: FALSY COMPARISONS
+"0" == null;			// false
+"0" == undefined;		// false
+"0" == false;			// true -- UH OH! -> "0" == 0 => 0 == 0 => true
+"0" == NaN;			// false
+"0" == 0;			// true
+"0" == "";			// false
+
+false == null;			// false
+false == undefined;		// false
+false == NaN;			// false
+false == 0;			// true -- UH OH! -> 0 == 0 => true
+false == "";			// true -- UH OH! -> 0 == "" => 0 == 0 => true (Number("") = 0)
+false == [];			// true -- UH OH! -> 0 == [] => 0 == 0 => true (Number([]) = 0) 
+false == {};			// false -> Number({}) = NaN
+
+"" == null;			// false
+"" == undefined;		// false
+"" == NaN;			// false
+"" == 0;			// true -- UH OH! -> 0 == 0 => true
+"" == [];			// true -- UH OH! -> 0 == 0 => true
+"" == {};			// false -> 0 != NaN
+
+0 == null;			// false
+0 == undefined;			// false
+0 == NaN;			// false
+0 == [];			// true -- UH OH! -> 0 == 0 => true
+0 == {};			// false -> 0 == NaN 
+
+eg 4:
+[] == ![];			// true -> [] == false => [] == 0 => 0 == 0 => true
+2 == [2];			// true -> 2 == "2" => 2 == 2 => true ([2] toString() is done due to coercion, resulting in "2")
+"" == [null];			// true -> "" == "" => true ([null] straight becomes "")
+-> Important to note that String(null) is "null" but String([null]) is ""
+0 == "\n";			// true -> 0 == 0 => true (Number("\n") = 0)
+-> Important to note that any whitespace combination or "", etc. result in 0 when coerced to number.
+
+eg 5:REVISION
+42 == "43";			// false -> 42 == 43
+"foo" == 42;			// false -> NaN == 42
+"true" == true;			// false -> NaN == 1
+42 == "42";			// true -> 42 == 42
+"foo" == [ "foo" ];		// true -> NaN == NaN
+
+
+***BAD LIST IN COERCION***
+"0" == false;			// true -- UH OH!
+false == 0;			// true -- UH OH!
+false == "";			// true -- UH OH!
+false == [];			// true -- UH OH!
+"" == 0;			// true -- UH OH!
+"" == [];			// true -- UH OH!
+0 == [];			// true -- UH OH!
+
+-> Safely using Implicit conversions
+**If either side of the comparison can have true or false values, don't ever, EVER use ==.
+**If either side of the comparison can have [], "", or 0 values, seriously consider not using ==.
+-> Use implicit except the places said above, and it wont burn out, mostly!!
+-> While using typeof, since there is never an "" (empty) typeof value (it has only seven strings as output, remember?), 
+use == as both == and === behave same.
+
+//Abstract relational comparison
+a < b evaluation algorithm (remember a > b is evaluated as b < a) : 
+1)ToPrimitive is called for coercion on both values
+2)if the return result of either call is not a string, then both values are coerced to number values using the ToNumber
+3)if both values are string, lexicographic check is performed.
+3)Then numerical is part is then evaluated.
+
+**there is no "strict relational comparison" as there is for equality, there's no way to prevent implicit coercion from occurring with relational comparisons 
+like a < b, other than to ensure that a and b are of the same type explicitly before making the comparison. **
+
+eg 1:
+var a = [ 42 ];
+var b = [ "43" ];
+a < b;		// true 
+b < a;		// false
+
+eg 2:
+var a = [ "42" ];
+var b = [ "043" ];
+a < b;		// false
+
+eg 3: a becomes "4,2" and b becomes "0,4,3"
+var a = [ 4, 2 ];
+var b = [ 0, 4, 3 ];
+a < b;		// false
+
+eg 4: both a and b become [object Object], and a is not < b
+var a = { b: 42 };
+var b = { b: 43 };
+a < b;		// false
+
+eg 5: a <= b or b <= a evaluates as a < b and then negates its result, or b < a and then negates its result.
+var a = { b: 42 };
+var b = { b: 43 };
+a < b;		// false
+a == b;		// false
+a > b;		// false
+a <= b;		// true
+a >= b;		// true
+
+eg 6:
+var a = [ 42 ];
+var b = "043";
+a < b;				// false -- string comparison!
+Number( a ) < Number( b );	// true -- number comparison!
+
+
+
+//GRAMMAR -> structured way to describe how syntax fits together into well-formed, valid programs.
+-> Sentence : collection of phrases and words. Statements are sentences, expressions are phrases, and operators are conjunctions/punctuation.
+eg: 
+var a = 3 * 6;
+var b = a;
+b;	// 18
+-> 3*6, a, b, 16 are all expressions
+-> var a = 3 * 6 and var b = a are called "declaration statements" because they each declare a variable (and optionally assign a value to it). 
+-> The a = 3 * 6 and b = a assignments (minus the vars) are called "assignment expressions".
+-> b; is an "expression statement", it is a complete statement all by itself.  
+-> the var a = 3*6 statement returns undefined in your console. 
+	Why? 
+	VariableDeclaration algorithm actually does return a value (a string containing the name of the variable declared), but that value is basically
+	swallowed up (except for use by the for..in loop) by the VariableStatement algorithm, which forces an empty (aka undefined) completion value.
+	Simply put, it just tells about the status of statement completion.
+-> Any block {..} has completion value of its last statement.
+eg:
+var b;
+if (true) {
+	b = 4 + 38;
+}
+//console returns 42
+-> Completion value is like an implicit return of the block/ or the statements for instance.
+-> We cant capture the completion value, even when we know its returned on the console after block or statement completion.
+eg: This script gives a syntax error 
+var a, b;
+a = if (true) {
+	b = 4 + 38;
+};
+SOLUTION: use of eval(..) -> discouraged.
+var a, b;
+a = eval( "if (true) { b = 4 + 38; }" );
+a;	// 42 
+
+->Expression side effects:
+eg 1: changing the value of a using functions is a side effect
+function foo() {
+	a = a + 1;
+}
+var a = 1;
+foo();	// result: undefined, side effect: changed a (a = 2)
+
+eg 2: changing the value of a using ++/-- is a side effect
+var a = 42;
+var b = a++;
+a;	// 43 -> changed a value
+b;	// 42
+
+eg 3: side effect: ++/ --
+var a = 42;
+a++;	// 42 
+a;	// 43
+++a;	// 44
+a;	// 44
+++a++ 	// gives syntax error -> a++ is evaluated first, giving us ++42, and ++42 is not possible since incrementing value directly is not a functionality.
+
+eg 4: () doesnt let you evaluate a++ first.
+var a = 42;
+var b = (a++); // (a++) or a++ both will give 42 first, and then increment later.
+a;	// 43
+b;	// 42
+
+eg 5: *IMP* after after-side-effect 
+var a = 42, b;
+b = ( a++, a ); // returns 43 on console, implying b = 3 -> (a++, a) implies b will be equal to a after the side effects of a++ have been calculated.
+a;	// 43
+b;	// 43
+
+eg 6: delete operation is valid for properties that are present, present and configurable, or not present properties. For these it return true in console.
+      For all properties other than this, it returns false.
+var obj = {
+	a: 42
+};
+obj.a;		// 42
+delete obj.a;	// true -> if the operation is valid, returns true, else false.
+obj.a;		// undefined
+
+eg 7: side effect of assignment =
+var a;
+a = 42;		// 42 -> assignment of some value in a is also a side effect
+a;		// 42
+
+eg 8: side effect of compound operators like +=, -=, etc.
+a = 1;		//1
+b = 2;		//2
+a = b += 2;	//4 -> evaluated as a = (b+=2) => a = 4
+a;		//4
+b;		//4
+
+eg 9: chained assignments 
+var a, b, c;
+a = b = c = 42;
+
+->mistake in chained assignments:
+var a = b = 42; -> if b was not declared before, then b is not declared directly using this statement. 
+		   In strict mode, it will show error, else it will make a global scope variable b
+
+->to return all vowels from an input string.
+eg:
+function vowels(str) {
+	var matches;
+	// pull out all the vowels
+	if (str && (matches = str.match( /[aeiou]/g ))) {
+		return matches;
+	}
+}
+vowels( "Hello World" ); // ["e","o","o"]
+
+-> contextual rules -> there are many places in js where same syntax is used for different things.
+1) {}
+eg 1: Object literals -> the 'a' is the 'l-value' or left hand value of assignment. The 'r-value' {..} is the right hand value of assignment.
+// assume there's a bar() function defined
+var a = {
+	foo: bar
+} //curly braces tell you its an object literal.
+eg 2: Without the l-value, defining an object literal actually becomes a normal block of code.
+// assume there's a bar() function defined
+{
+	foo: bar()	//"labeled statements" -> foo is a label for the statement bar()
+}
+eg 3: the foo:bar() here is used as a label, so the best use of label is for loops. You can use it with continue.
+// foo labeled-loop
+foo: for (var i=0; i<4; i++) {		// foo labeled loop
+	for (var j=0; j<4; j++) {
+		if (j == i) {
+			// jump to the next iteration of the foo labeled-loop
+			continue foo;
+		}
+		// skip odd multiples
+		if ((j * i) % 2 == 1) {
+			// normal (non-labeled) continue of inner loop
+			continue;
+		}
+		console.log( i, j );
+	}
+}
+// 1 0
+// 2 0
+// 2 1
+// 3 0
+// 3 2
+eg 4: You can use labels for breaking the loops too.
+foo: for (var i=0; i<4; i++) {
+	for (var j=0; j<4; j++) {
+		if ((i * j) >= 3) {
+			console.log( "stopping!", i, j );
+			// break out of the `foo` labeled loop
+			break foo;
+		}
+
+		console.log( i, j );
+	}
+}
+// 0 0
+// 0 1
+// 0 2
+// 0 3
+// 1 0
+// 1 1
+// 1 2
+// stopping! 1 3
+eg 5: Labels can be used to break blocks of code.
+function foo() {
+	// bar labeled-block
+	bar: {
+		console.log( "Hello" );
+		break bar;
+		console.log( "never runs" );
+	}
+	console.log( "World" );
+}
+foo();
+// Hello
+// World
+eg 6: coercion
+[] + {}; // "[object Object]" -> "" + {} -> object
+{} + []; // 0 -> {} + 0 -> 0
+eg 7: destructuring assignments.
+function getData() {
+	// ..
+	return {
+		a: 42,
+		b: "foo"
+	};
+}
+var { a, b } = getData();	// destructuring -> a:42 is assigned to a, b:"foo" is assigned to b. 
+console.log( a, b ); 		// 42 "foo"
+eg 8: other example of destructing using names function arguements.
+function foo({ a, b, c }) {
+	// no need for:
+	// var a = obj.a, b = obj.b, c = obj.c
+	console.log( a, b, c );
+}
+foo( {
+	c: [1,2,3],
+	a: 42,
+	b: "foo"
+} );	// 42 "foo" [1, 2, 3]
+
+
+-> Operator precedence
+eg 1: '&&' has a greater precedence than '||'
+var a = 42;
+var b = "foo";
+var c = [1,2,3];
+
+a && b || c; 	// "foo" ->	(a && b) || c => (true && true) || false => "foo" || false => "foo"
+a || b && c; 	// 42 	 ->	a || (b && c) => true || (true && false) => 42 || false => 42
+
+eg 2:
+var a = 42, b;
+b = a++, a;
+a;	// 43
+b;	// 42 -> why? ',' has lower precedence than '='
+
+eg 3:
+if (str && (matches = str.match( /[aeiou]/g ))) { // we used () for matches = ... because '&&' has higher precedence than '='
+	// ..
+}
+
+->Short circuited behaviour : for both || and &&, right hand side operand is evaluated on condition of the left hand side evaluation.
+eg 1: Useful to prevent errors, in this case if opts was not valid, opts.cool would have generated error, but && prevented it.
+function doSomething(opts) {
+	if (opts && opts.cool) {
+		// ..
+	}
+}
+eg 2: Useful to prevent extra calling or doing unnecessary work, is opts.cache is true, primeCache() is not even called, hence work is done less.
+function doSomething(opts) {
+	if (opts.cache || primeCache()) {
+		// ..
+	}
+}
+
+-> back to precedence
+eg 4: Tight binding
+var a = true, b = false, c = false;
+a && b || c ? c || b ? a : c && b : a 		// true
+ --> evaluation is done as precedence : && > || > ?: =>> implies that && and || bind more tightly than ?:
+So the expression evaluates as : ((a && b) || c) ? ((c || b) ? a : (c && b)) : a
+
+-> associativity : 
+1)both && and || are left associative, a && b && c ==> (a && b) && c but in most cases (a && b) && c works equivalent to a && (b && c)
+(a && b) is "foo".
+("foo" || c) is "foo".
+For the first ? test, "foo" is truthy.
+(c || b) is "foo".
+For the second ? test, "foo" is truthy.
+a is 42.
+2)? : is right-associative, eg: a ? b : c ? d : e; will be evaluated as a ? b : (c ? d : e);
+3)= is right associative.
+var a, b, c;
+a = b = c = 42; // evaluates as a = (b = (c = 42));
+
+-> to avoid disambiguation, use operator precedence/associativity where it leads to shorter and cleaner code, but use ( ) manual grouping 
+in places where it helps create clarity and reduce confusion.
+
+-> ASI (Automatic Semicolon Insertion) is when JavaScript assumes a ; even if you dont enter it.
+eg: ; is expected after do..while but not after while or for loops
+var a = 42;
+do {
+	// ..
+} while (a)	// <-- ; expected here
+a;
+
+-> Error correction
+//a parser error occurs is if it's given an incorrect/errored program to parse, ASI corrects parse errors.
+//use semicolons wherever you know they are "required," and limit your assumptions about ASI to a minimum. -> best way to avoid errors
+
+->Errors in JS
+1) There are different subtypes of errors (TypeError, ReferenceError, SyntaxError, etc.).
+2) Also the grammar defines certain errors to be enforced at compile time, as compared to all other errors that happen during runtime.
+3) Early error -> straight up syntax errors 
+Examples of errors:
+1)var a;
+  42 = a;		// Error! -> left assignments dont work, the value has to be on the right of the assignment 
+2)function foo(a,b,a) { }			
+  function bar(a,b,a) { "use strict"; }	// Error! -> arguements cant have duplicate names when in strict mode
+3)
+(function(){
+	"use strict";
+
+	var a = {
+		b: 42,
+		b: 43
+	};			// Error! -> an object cannot have the same property name multiple times in strict mode.
+})();
+
+
+-> Using variables too early, TDZ ("Temporal Dead Zone") is a zone where variable reference cannot be made, because its initialization hasnt been done yet.
+eg : TDZ for a in eg 1, for b in eg 2
+{
+	a = 2;		// ReferenceError!
+	let a;
+}
+{
+	typeof a;	// undefined
+	typeof b;	// ReferenceError! (TDZ)
+	let b;
+}
+eg : other example is in function arguements
+var b = 3;
+function foo( a = 42, b = a + b + 5 ) {		// b here is in the TDZ zone, it cant reference itself if being defined as a parameter.
+	// ..
+}
+eg :
+function foo( a = 42, b = a + 1 ) {
+	console.log( a, b );
+}
+foo();				// 42 43 -> default
+foo( undefined );		// 42 43 -> default
+foo( 5 );			// 5 6
+foo( void 0, 7 );		// 42 7 -> default for a
+foo( null );			// null 1 
+//arguements array is empty if no parameter is passed, even though the function has default parameters.
+eg : when using arguements, there must exist a linkage, if not, gives undefined behaviour.
+function foo(a) {
+	a = 42;
+	console.log( arguments[0] ); // gives undefined on console.
+}
+foo( 2 );	// 42 (linked)
+foo();		// undefined (not linked)
+//never refer to the named parameter and the same index arguement at same time, it might give errors.
+function foo(a) {
+	console.log( a + arguments[1] ); // safe!
+}
+foo( 10, 32 );	// 42
+
+
+-> try, catch, finally :
+	try only requires either catch or finally, both can be present though
+	finally always executes its code regardles of how the code behaves.
+eg 1:
+function foo() {
+	try {
+		return 42;
+	}
+	finally {
+		console.log( "Hello" ); // even if try has a return, the block is checked if there is a finally, and if it is present, its code is executed
+	}				// before the return of a try block/catch block is processed.
+	console.log( "never runs" );
+}
+console.log( foo() );
+// Hello
+// 42
+
+eg 2:
+function foo() {
+	try {
+		throw 42;		// this exception neither has its catch nor finally
+	}
+	finally {
+		console.log( "Hello" );
+	}
+
+	console.log( "never runs" );
+}
+console.log( foo() );
+// Hello
+// Uncaught Exception: 42
+
+eg 3:
+function foo() {
+	try {
+		return 42;
+	}
+	finally {
+		throw "Oops!";		// if there is a throw statement in a finally, it will throw an exception, and if not having caught 
+	}				// by catch or finally, it will throw an exception error.
+	console.log( "never runs" );
+}
+console.log( foo() );
+// Uncaught Exception: Oops!
+
+eg 4: continue and break have similiar behaviour to that of throw or return.
+for (var i=0; i<10; i++) {
+	try {
+		continue;
+	}
+	finally {
+		console.log( i );
+	}
+}
+// 0 1 2 3 4 5 6 7 8 9
+
+**yield**
+ES6 adds a yield statement, in generators which in some ways can be seen as an intermediate return statement. 
+However, unlike a return, a yield isn't complete until the generator is resumed, which means a try { .. yield .. } has not completed. 
+So an attached finally clause will not run right after the yield like it does with return.
+
+eg 5: return in finally overrides the return of try/catch block
+function foo() {
+	try {
+		return 42;
+	}
+	finally {
+		// no return .. here, so no override
+	}
+}
+function bar() {
+	try {
+		return 42;
+	}
+	finally {
+		// override previous return 42
+		return;
+	}
+}
+function baz() {
+	try {
+		return 42;
+	}
+	finally {
+		// override previous return 42
+		return "Hello";
+	}
+}
+foo();	// 42
+bar();	// undefined
+baz();	// "Hello"
+
+eg 6:finally + break effectively helps in cancelling the return
+function foo() {
+	bar: {
+		try {
+			return 42;
+		}
+		finally {
+			// break out of `bar` labeled block
+			break bar;
+		}
+	}
+
+	console.log( "Crazy" );
+
+	return "Hello";
+}
+console.log( foo() );
+// Crazy
+// Hello
+
+-> switch : for a given check for a variable a, if its value is equal to any of the case values, that case is executed, else the default case is run if none
+	    of the cases match. The matching occurs as a === check.
+switch (a) {
+	case 2:
+		// do something
+		break;
+	case 42:
+		// do another thing
+		break;
+	default:
+		// fallback to here
+}
+//for using == checks
+var a = "42";
+switch (true) {
+	case a == 10:
+		console.log( "10 or '10'" );
+		break;
+	case a == 42:
+		console.log( "42 or '42'" );
+		break;
+	default:
+		// never gets here
+}
+// 42 or '42'
+
+eg : if the case statement results in something truthy but not true, it gives 
+var a = "hello world";
+var b = 10;
+
+switch (true) {
+	case (a || b == 10): 		//evaluates to truthy but not true, "hello world" is not true, hence the code never gets here as strict match fails.
+		// never gets here
+		break;
+	default:
+		console.log( "Oops" );
+}
+// Oops
+
+eg : There needs to be a break statement at each case, else all cases will be executed after a valid case value, or a default case is evaluated.
+var a = 10;
+
+switch (a) {
+	case 1:
+	case 2:
+		// never gets here
+	default:					//after default, all other cases execute until break is encountered.
+		console.log( "default" );
+	case 3:
+		console.log( "3" );
+		break;
+	case 4:
+		console.log( "4" );
+}
+// default
+// 3
