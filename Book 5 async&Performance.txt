@@ -1,0 +1,1515 @@
+// Callback function : a way of waiting for now until later to get any kind of result. 
+-> Async functions are essentially callback functions.
+ex: making AJAX requests should always be asynchronous, although synchronous calls are also possible, you should always focus on async calls.
+Why AJAX requests should never be synchronous? This is because until the request is resolved, the user-interaction will stop because of a sync call.
+eg: A quite literal example here states how a program consists of various blocks, some blocks that run now/ at present are called synchronous, others are
+    the parts of code which will give results later, called asynchronous. 
+function now() {	// part of code that runs now.
+	return 21;
+}
+function later() {	// part of code that runs later.
+	answer = answer * 2;
+	console.log( "I am async:", answer );
+}
+var answer = now();
+setTimeout( later, 1000 ); // I am async: 42 -> setTimeout(..) sets an event to be handled later
+//Everytime you wrap a func inside any kind of event, it brings in async behaviour.
+
+//Async console simply means that sometimes console gives as output what you create, which might be an async behaviour if what you're expecting is just the
+output of the console.log statement.
+eg:
+var a = {
+index: 1
+};
+// later
+console.log( a ); // {index: 1} 1 -> here {index: 1} is an output of the object a you created, and 1 is the output of the console.log(..) statement.
+// even later
+a.index++;
+
+-> Js works in various environments, it consists of an event loop, which handles the call stack and job queue. What happens here is that when a function 
+has to be called for execution, it enters the queue. Event loop is responsible for managing the functions that need to go from queue to call stack for 
+execution, handle any I/O processes or wait for a callback function to return to the call stack.
+->For eg: setTimeout is not used to bring back the callback function into the event loop queue, it is responsible for setting a timer after which the
+environment will bring back the callback function into event loop and event loop will further handle its execution.
+
+//Parallel threading -> things happening simultaneously, eg: processes and threads can execute independently and simultaneously, either on multiple
+computers/ processors. 
+//An event loop on the other hand works by breaking tasks and executing them serially.
+
+eg: Lets explain a parallel behaviour
+var a = 20;
+function foo() {
+a = a + 1;
+}
+function bar() {
+a = a * 2;
+}
+Now lets assume you made an ajax call to both the functions, foo(); bar();
+If foo() was evaluated first, it would make a = 21, and then bar() would make a = 42;
+If bar() was evaluated first, it would make a = 40, and then foo() would make a = 41;
+The output totally depends on how the parallel behaviour in a browser would work. This is a problem in parallel threading, it might give different results 
+in different browsers.
+
+->In javascript, data is never shared between threads.
+Run-to-completion is another thing in js which says that if foo() starts running, it'll first finish its execution before any code in bar() can run, and vice versa.
+eg:
+//chunk 1 -> synchronous
+var a = 1;
+var b = 2;
+//chunk 2 -> asynchronous
+function foo() {
+a++;
+b = b * a;
+a = b + 3;
+}
+//chunk 3 -> asynchronous
+function bar() {
+b--;
+a = 8 + b;
+b = a * 2;
+}
+Now the 2 async chunks, chunk 2 and 3 may happen in either-first order.
+If foo() -> bar() , a : 11, b: 22
+If bar() -> foo(), a: 183, b:180
+This function-ordering dependent code shows non-determinism in the values of a and b variables.
+Function-ordering non-determinism is knows as race condition, where the functions race to know which will be run first. Specifically it is race-condition
+as we cannot predict how a and b values will turn out.
+
+//Concurrency -> two or more processes executing simultaneously at same time regardless if their operations happen in parallel or not.
+		 It is process-level simultaneous behaviour, not operation-level.
+eg: Lets work with ajax where we have a single-threaded event loop
+//process 1 -> generating requests on user-onscroll
+onscroll, request 1
+onscroll, request 2
+onscroll, request 3
+onscroll, request 4
+onscroll, request 5
+onscroll, request 6
+onscroll, request 7
+//process 2 -> generating responses
+response 1
+response 2
+response 3
+response 4
+response 5
+response 6
+response 7
+
+//Lets assume the timeline worked out like:
+onscroll, request 1
+onscroll, request 2 response 1
+onscroll, request 3 response 2
+response 3
+onscroll, request 4
+onscroll, request 5
+onscroll, request 6 response 4
+onscroll, request 7
+response 6
+response 5
+response 7
+
+-> In the timeline, either a request can be made or response can be loaded at a time, bcoz JS is able to handle	only one event at a time.
+//Now the event loop becomes:
+onscroll, request 1 <--- Process 1 starts
+onscroll, request 2
+response 1 <--- Process 2 starts
+onscroll, request 3
+response 2
+response 3
+onscroll, request 4
+onscroll, request 5
+onscroll, request 6
+response 4
+onscroll, request 7 <--- Process 1 finishes
+response 6
+response 5
+response 7 <--- Process 2 finishes
+//This shows processes 1 and 2 run concurrently, but their individual operations run sequentially
+
+//Non-interacting -> if two processes(processes mentioned here are all virtual processes/ tasks if you can say, not os level processes) don't interact with 
+each other even if there steps are being processed concurrently, then they're non-interacting processes. Its acceptable to have non-deterministic behaviour
+if the processes are non-interating.
+eg : In this program, foo() and bar() both update different properties of the res object, but since they are non-interacting, it doesnt matter in which 
+     order they run.
+var res = {};
+function foo(results) {
+res.foo = results;
+}
+function bar(results) {
+res.bar = results;
+}
+**This is not a race-condition bug(explained later)
+
+//Interaction -> when concurrent processes interact via operations/ DOM/ etc., these interactions need to be maintained to avoid race conditions.
+eg: In this function, there are two response calls made by the program, and each of them is responsible to push results into the res object.
+var res = [];
+function response(data) {
+res.push( data );
+}
+// ajax(..) is some arbitrary Ajax function given by a library
+ajax( "http://some.url.1", response ); //call 1
+ajax( "http://some.url.2", response ); //call 2
+-> Lets interpret it as first call 1 brought in result at res[0], and then call 2 at res[1], and so on alternatingly.
+   But there can be a time where call 2 brings in a result before call 1, this is where race condition enters inside the program, and is certainly a bug.
+
+Q. What is a race condition bug ? 
+When processes run to bring out the results, and these results are evaluated in a non-deterministic order, its called race-condition.
+If the processes are interacting, its race-condition bug as the order of outputs affects the overall result. 
+If processes are non-interacting, it doesn't matter in what order the result is made, hence its not a bug anymore.
+
+eg : Eliminating race-condition non-determinism -> the data.url ensures that the result is made in a specific order, regardless of order of ajax responses.
+var res = [];
+function response(data) {
+if (data.url == "http://some.url.1") {
+res[0] = data;
+}
+else if (data.url == "http://some.url.2") {
+res[1] = data;
+}
+}
+// ajax(..) is some arbitrary Ajax function given by a library
+ajax( "http://some.url.1", response );
+ajax( "http://some.url.2", response );
+
+eg 1: some concurrent scenarios cause problems while execution. Here both functions call baz(), no matter foo() is called first, or bar(), the first call to 
+    baz() will result in either of a or b being undefined, but the second call may lead to both a and b being available. 
+var a, b;
+function foo(x) {
+a = x * 2;
+baz();
+}
+function bar(y) {
+b = y * 2;
+baz();
+}
+function baz() {
+console.log(a + b);
+}
+#One such solution is using if(a && b) statement before calling baz() to ensure both a and b are available. 
+eg:
+function foo(x) {
+a = x * 2;
+if (a && b) {	//this type of enclosing is called a gate, bcoz we wait for a and b both to be available to open the gate(call baz())
+baz();
+}
+}
+
+eg 2: other type of concurrency example is when there is a race where only the first one will win, non-determinism is acceptable here as we only need the 
+target to be hit once, whosoever the calling function be. In this code, the second call modifies value of a. We only want one winner here.
+var a;
+function foo(x) {
+a = x * 2;
+baz();
+}
+function bar(x) {
+a = x / 2;
+baz();
+}
+function baz() {
+console.log( a );
+}
+// ajax(..) is some arbitrary Ajax function given by a library
+ajax( "http://some.url.1", foo );
+ajax( "http://some.url.2", bar );
+#Solution could be to call baz() only if a is undefined
+eg:
+function foo(x) {	
+if (a == undefined) {
+a = x * 2;
+baz();
+}
+}
+-> if statement for a check now allows to call baz() only once, any other call will be ignored.
+
+//Cooperation: breaking a long process into steps so that other concurrent processes can interleave their operations into event loop queue.
+eg:
+var res = [];
+// response(..) receives array of results from the Ajax call
+function response(data) {
+// add onto existing res array
+res = res.concat(
+// make a new transformed array with all data values doubled
+data.map( function(val){
+return val * 2;
+} )
+);
+}
+// ajax(..) is some arbitrary Ajax function given by a library
+ajax( "http://some.url.1", response );
+ajax( "http://some.url.2", response );
+ 
+-> This code is okay if a few thousand elements are present in the data array, but if it has a length say a million, it would stop any other process
+from its execution, even other response calls or any ui processing, which would be very cumbersome.
+-> To avoid this, use async calls.
+eg:
+var res = [];
+// response(..) receives array of results from the Ajax call
+function response(data) {
+var chunk = data.splice( 0, 1000 );	// let's just do 1000 at a time
+res = res.concat(
+chunk.map( function(val){
+return val * 2;
+} )
+);
+if (data.length > 0) { 			// if data is left..
+setTimeout( function(){			// async schedule next batch
+response( data );
+}, 0 );
+}
+}
+// ajax(..) is some arbitrary Ajax function given by a library
+ajax( "http://some.url.1", response );
+ajax( "http://some.url.2", response );
+
+-> setTimeout(..0) lets u make an async call, and processing in groups of 1000 basically means that you have broken down the process into multiple concurrent
+processes, which might not result in the correct order in res array(unpredictable), but will run asynchronously together to avoid large waiting times.
+
+//Job queue -> "Job queue" is a queue hanging off the end of every tick in the event loop queue. Async actions that occur during a tick are usually added in
+the current tick's job queue and not the event loop.
+Or, to use a metaphor: the event loop queue is like an amusement park ride, where once you finish the ride, you have to go
+to the back of the line to ride again. But the Job queue is like finishing the ride, but then cutting in line and getting right back
+on.
+
+eg: Consider that schedule() is an API for scheduling jobs.
+console.log( "A" );
+setTimeout( function(){
+console.log( "B" );
+}, 0 );
+// theoretical "Job API"
+schedule( function(){
+console.log( "C" );
+schedule( function(){
+console.log( "D" );
+} );
+} );
+Answer here is not ABCD but ACDB because jobs are scheduled at the end of the current tick, before any other tick in event loop is evaluated.
+-> current tick : print A, next tick : setTimeout function (first goes to queue then added in event loop), jobs are the schedule calls, added at end of 
+current tick. So A -> C -> D -> B
+
+RUN IN YOUR CONSOLE AS :
+function schedule(f){
+    f();
+};
+console.log( "A" );
+setTimeout( function(){
+console.log( "B" );
+}, 0 );
+// theoretical "Job API"
+schedule( function(){
+console.log( "C" );
+schedule( function(){
+console.log( "D" );
+} );
+} );
+
+//Statement ordering : It is not necessary that the order in which your code statements are present is the order of their execution. A JS compiler may 
+use different startegies to print results. 
+ex:
+var a,b;
+a = 10;
+b = 30;
+a = a+1;
+b = b+1;
+console.log(a+b);	// 42
+This can be compiled as:
+var a,b;
+a = 10;
+b = 30;
+a++;
+b++;
+console.log(a+b);	// 42
+Or as:
+var a,b;
+a = 11;
+b = 31;
+console.log(a+b);	// 42
+Or as:
+console.log(42);	// 42 
+
+However this case doesnt have any async behaviour which could bring in errors.
+Consider:
+function foo() {
+console.log( b );
+return 1;
+}
+var a, b, c;
+c = {
+get bar() {		// getter literal syntax
+console.log( a );
+return 1;
+}
+};
+a = 10;
+b = 30;
+a += foo(); // 30
+b += c.bar; // 11
+console.log( a + b ); // 42
+If the code didnt include console.log statements, the JS engine would likely have been free to reorder the code. Could have been :
+// ...
+a = 10 + foo();
+b = 30 + c.bar;
+// ...	
+
+
+//Callbacks - function that lets you come back to the program.
+A function acts as a "callback," because it serves as the target for the event loop to "call back into" the program, whenever that item in the queue 
+is processed.
+eg:
+// A
+setTimeout( function(){
+// C
+}, 1000 );
+// B
+Analyse it as first do A, then wait for 1000 ms, meanwhile do B, then after B is completed, and then do C after the timeout fires.
+
+eg: A code with 3 async calls
+listen( "click", function handler(evt){
+setTimeout( function request(){
+ajax( "http://some.url.1", function response(text){
+if (text == "hello") {
+handler();
+}
+else if (text == "world") {
+request();
+}
+} );
+}, 500) ;
+} );
+-> This type of code is known as an example of callback hell/ pyramid of doom, not because of its nesting, but because of alot other reasons.
+->The code can be explained as:
+First (now), we:
+listen( "..", function handler(..){
+// ..
+} );
+
+Then later, we:
+setTimeout( function request(..){
+// ..
+}, 500) ;
+
+Then still later, we:
+ajax( "..", function response(..){
+// ..
+} );
+
+And finally (most later), we:
+if ( .. ) {
+// ..
+}
+else ..
+
+
+//Consider 
+doA( function(){
+	doC();
+	doD( function(){
+		doF();
+	} )
+	doE();
+} );
+doB();
+-> if these daA() and doD() are async, the order of execution will be -> A -> B -> C -> D -> E -> F
+-> but if these were not async, the order of execution will be -> A -> C -> D -> F -> E -> B
+
+rewriting previous code:
+eg:
+listen( "click", handler );	//step 1
+function handler() {
+setTimeout( request, 500 );	//step 2
+}
+function request(){
+ajax( "http://some.url.1", response );		//step 3
+}
+function response(text){	//step 4
+if (text == "hello") {
+handler();			
+}
+else if (text == "world") {
+request();
+}
+}
+-> Now you see that the nesting is different, but its surely a type of callback hell example. Why? This code consists of multiple nested callbacks, the ones
+that make it difficult to read and debug our code. Here the callback gives us a way to hardcode step 2 into step 1, step 3 into step 2, and so on..
+If step 2 fails, step 3 never gets reached, and similarly for all other steps. This involves writing a failure and success code for each callback we have.
+
+-> Lets consider another example:
+function addNumbers(x,y) {
+// + is overloaded with coercion to also be
+// string concatenation, so this operation
+// isn't strictly safe depending on what's
+// passed in.
+return x + y;
+}
+addNumbers( 21, 21 ); // 42
+addNumbers( 21, "21" ); // "2121"
+//To solve this problem, we can use to solutions : 
+1) in addNumbers(x, y){x = Number(x); y = Number(y)}
+2) in addNumbers(x, y){} -> check typeof of x and y to be both Number, if not, return error
+
+//Saving callbacks
+eg 1: Split-callback design format, where if the request is successful, data is shown, else error is shown. This is like a promise design.
+function success(data) {
+console.log( data );
+}
+function failure(err) {
+console.error( err );
+}
+ajax( "http://some.url.1", success, failure );
+
+eg 2: error-first style -> it has first arguement of its callback as an error, if the callback is a success, the arguement is empty/falsy, 
+else error is signalled/truthy.
+function response(err,data) {
+// error?
+if (err) {
+console.error( err );
+}
+// otherwise, assume success
+else {
+console.log( data );
+}
+}
+ajax( "http://some.url.1", response );
+
+
+//Promises
+eg:
+var x, y = 2;
+console.log( x + y ); // NaN -> because x isn't set yet
+
+//Lets convert it into a better code where we have a proper mechanism to print sum only when both a and b values are available.
+function add(getX,getY,cb) {
+var x, y;
+getX( function(xVal){
+x = xVal;
+if (y != undefined) {	// both are ready?
+cb( x + y ); 		// send along sum
+}
+} );
+getY( function(yVal){
+y = yVal;
+if (x != undefined) {	// both are ready?
+cb( x + y ); 		// send along sum
+}
+} );
+}
+// fetchX() and fetchY() are sync or async functions
+add( fetchX, fetchY, function(sum){
+console.log( sum ); // that was easy, huh?
+} );
+
+//Lets convert it into promises.
+function add(xPromise,yPromise) {
+// Promise.all([ .. ]) takes an array of promises, and returns a new promise that waits on them all to finish
+return Promise.all( [xPromise, yPromise] )
+	.then( function(values){	// when that promise is resolved, let's take the received X and Y values and add them together.
+	return values[0] + values[1];	// values is an array of the messages from the previously resolved promises
+	} );
+}			
+add( fetchX(), fetchY() )		// fetchX() and fetchY() return promises for their respective values, which may be ready *now* or *later*.
+// we get a promise back for the sum of those two numbers. now we chain-call `then(..)` to wait for the resolution of that returned promise.
+.then( function(sum){
+console.log( sum ); // that was easier!
+} );
+->Now as we see in the code, we dont need to use any if..else conditions, just wait for our promise to be collected and use the results to give the output.
+-> X and Y are the future values
+
+->With Promises, the then(..) call can actually take two functions, the first for fulfillment, and the second for rejection:
+add( fetchX(), fetchY() )
+.then(
+function(sum) {		// fullfillment handler or success function
+console.log( sum );
+},
+function(err) {		// rejection handler -> if something goes wrong with X or Y or with the sum function and an error occurs, the rejection function
+console.error( err ); 	// or the failure fuction is called and it prints the error.
+}
+);
+	
+-> A promise once resolved to its value becomes immutable, which cannot be modified accidentally or maliciously. 
+-> Promise: as a flow-control mechanism -- a temporal this-then-that -- for two or more steps in an asynchronous task
+-> promise events - then() of a promise calls resolve or reject events, which have values accordingly of on completion and on error.
+eg:
+function foo(x) {
+// start doing something that could take a while construct and return a promise
+return new Promise( function(resolve,reject){
+// eventually, call resolve(..) or reject(..), which are the resolution callbacks for the promise.
+} );
+}
+var p = foo( 42 );
+bar( p );
+baz( p );
+//Now bar(p) and baz(p) use the promise returned by foo and process the on resolve or on reject using then()
+function bar(fooPromise) {
+fooPromise.then(	// listen for foo(..) to complete, then use its promise value..
+function(){		// foo(..) has now finished, so do bar(..)'s task -> success
+},
+function(){		// oops, something went wrong in foo(..) -> failure
+}
+);
+}
+// ditto for baz(..)
+
+-> other approach : 
+function bar() {
+// foo(..) has definitely finished, so do bar(..)'s task
+}
+function oopsBar() {
+// oops, something went wrong in foo(..), so bar(..) didn't run
+}
+// ditto for baz() and oopsBaz()
+var p = foo( 42 );
+p.then( bar, oopsBar );		// now this says that call bar() when the promise was successful, call oopsBar if it was not.
+p.then( baz, oopsBaz );		// similar behaviour as bar();
+
+-> Notice that bar and baz can work asynchronously and find their results in any order, hence the .then().then() chaining is not used here
+which would mean that only after promise has been evaluated, evaluate bar()'s code, and only after bar() has been evaluated, evaluate baz()'s code.
+eg:
+function foo(){
+  return new Promise(function(resolve, reject) {
+  resolve("done");
+  reject(new Error("…")); 	// ignored
+});
+}
+var p = foo();
+p; 				// Promise {<resolved>: "done"}
+p instanceof Promise;		// true
+
+//Duck typing - if it looks like duck, quacks like duck, it must be duck.
+-> p typeOf Promise //true
+but its not a valide way of identifying a promise.
+Ducktyping for thenable : (thenable is any object that has a .then() associated with it)
+if ( p !== null && ( typeof p === "object" || typeof p === "function" ) && typeof p.then === "function") {
+// assume it's a thenable!
+}
+else {
+// not a thenable
+}
+
+eg: [[Prototype]] chain example of thenable
+var o = { then: function(){} };
+// make v be [[Prototype]]-linked to o
+var v = Object.create( o );
+v.someStuff = "cool";
+v.otherStuff = "not so cool";
+v.hasOwnProperty( "then" ); // false
+
+//Trust issues with callback-only coding
+1)Call the callback too early -> this is the behaviour where sometimes a task may finish synchronously and sometimes asynchronously, which can 
+lead to race conditions. Solution: then(), when you call then(..) on a Promise, even if that Promise was already resolved, the callback you 
+provide to then(..) will always be called asynchronously 
+
+2)Call the callback too late (or never) : When a promise is resolved, all scheduled .then() calls on it are resolved, in order, immediately 
+at the next async opportunity. Here the C then() code goes to the next async call evaluation, so first we have A, then B and then C 
+eg:
+p.then( function(){
+p.then( function(){
+console.log( "C" );
+} );
+console.log( "A" );
+} );
+p.then( function(){
+console.log( "B" );
+} );
+// A B C -> here C does not precede B because of how Promises work
+
+3)Promise Scheduling Quirks -> here p1 calls p3, which is an async call, and hence itevaluates after p3 and p2 async calls 
+are done. So the output is not B A but A B (remember job queue, p3 and p2 are like one tick, and then p1 is a job queue entry which will be 
+evaluated after this tick)
+eg:
+var p3 = new Promise( function(resolve,reject){
+resolve( "B" );
+} );
+var p1 = new Promise( function(resolve,reject){
+resolve( p3 );
+} );
+var p2 = new Promise( function(resolve,reject){
+resolve( "A" );
+} );
+p1.then( function(v){
+console.log( v );
+} );
+p2.then( function(v){
+console.log( v );
+} );
+// A B <-- not B A as you might expect
+
+4)Call the callback too few or too many times -> too few is calling 0 times. Promises are defined so that they can only be resolved once.
+If for some reason the Promise creation code tries to call resolve(..) or reject(..) multiple times, or tries to call both, the Promise will
+accept only the first resolution, and will silently ignore any subsequent attempts, unless it is registered multiple times p.then(f); p.then(f);
+
+5)Fail to pass along any necessary environment/parameters -> promises have only one resolution value. If you pass nothing, it gives you an error,
+as it needs atleast one value to assign to. However if you pass multiple, the one it resolves to is then looked out for, and rest are ignored.
+The safest way of passing multiple values to a result of promise is by using an array or object.
+
+6)swallow any errors/exceptions that may happen -> if you reject a promise with a reason, it is rejected. But if any error (Type or reference, etc.)
+occur, then it will cause promise to reject.
+eg 1:
+var p = new Promise( function(resolve,reject){
+foo.bar(); 			// foo is not defined, so error!
+resolve( 42 );
+} );
+p.then(
+function fulfilled(){
+console.log("done");
+},
+function rejected(err){
+console.log("not done");	// this will be our output
+}
+);
+// not done -> foo() was not defined, hence TypeError caused the rejection
+
+eg 2: swallowing of error : when the promise was assigned a value, but then a js exception tried to modify it, by generating a TypeError
+var p = new Promise( function(resolve,reject){
+resolve( 42 );
+} );
+p.then(
+function fulfilled(msg){
+foo.bar();			// foo.bar() is not defined -> TypeError
+console.log( msg ); 		// never gets here 
+},
+function rejected(err){
+	..			// never gets here either
+}
+);
+This is a big problem as once a promise is assigned its result, it can't and shouldn't be manipulated.
+Seems like a logical behavior on the surface. But it would violate the fundamental principle that Promises are immutable once resolved. 
+p was already resolved to value 42 , so it can't later be changed to a rejection just because there's an error in observing p 's resolution.
+
+//Trustable Promise? -> How can we say that a promise is trustable than callbacks, can we rely that it will give us back something authentic
+and will be worth trusting? Promise gives us a solution to this "trust issue" by the fact that it brings with it a Promise.resolve() which 
+will accept any thenable, either a promise or a non-promise, and will then unwrap it to its non-thenable value. But you get back from
+Promise.resolve(..) a real, genuine Promise in its place, one that you can trust.
+
+eg 1: Both p1 and p2 give 42, because p2 returns a trustable promise -> even if you pass a number to p2.
+var p1 = new Promise( function(resolve,reject){
+resolve( 42 );				// 42
+} );
+var p2 = Promise.resolve( 42 );		// 42
+
+eg 2: Both p1 and p2 are same, because p2 returns a trustable promise(returns the promise itself) -> even if you pass a promise to p2.
+var p1 = Promise.resolve( 42 );
+var p2 = Promise.resolve( p1 );
+p1 === p2; // true
+
+eg 3: Lets have an object thenable implemented -> has only resolve, so gives 42 -> correct (by chance)
+var p = {
+then: function(cb) {
+cb( 42 );
+}
+};
+// this works OK, but only by good fortune
+p.then(
+function fulfilled(val){
+console.log( val ); 	// 42
+},
+function rejected(err){
+	..		// never gets here
+}
+);
+
+#extended eg 3 -> has both values, a thenable should have resolved to one value only, but here it does not. 
+var p = {
+then: function(cb,errcb) {		// then now evaluates both its parameters, which will become the resolve and reject later.
+cb( 42 );
+errcb( "evil laugh" );
+}
+};
+p.then(
+function fulfilled(val){
+console.log( val ); 			// 42
+},
+function rejected(err){
+// shouldn't have run, but does.
+console.log( err ); 			// evil laugh
+}
+);
+
+eg 4: Using promise.resolve(..), the thenable is now unwraped into a genuine promise value and is now resolved to the first value it got,
+hence results in 42.
+Promise.resolve( p )
+.then(
+function fulfilled(val){
+console.log( val ); 		// 42
+},
+function rejected(err){
+	..			// never gets here
+}
+);
+
+-> when to use : when you know that you have a thenable object but you cant trust if its return value is a valid promise or not
+eg:
+// don't just do this:
+foo( 42 )
+.then( function(v){
+console.log( v );
+} );
+// instead, do this:
+Promise.resolve( foo( 42 ) )
+.then( function(v){
+console.log( v );
+} );
+
+
+//CHAIN FLOW
+1)Every time you call then(..) on a Promise, it creates and returns a new Promise, which we can chain with.
+2)Whatever value you return from the then(..) call's fulfillment callback (the first parameter) is automatically set as the fulfillment 
+of the chained Promise (from the first point).
+
+eg: Here p2 has the result of p, p2.then() process the p2 result, making a chain.
+var p = Promise.resolve( 21 );
+var p2 = p.then( function(v){
+console.log( v ); 	// 21
+return v * 2;		// resolve p2 with 42
+} );
+p2.then( function(v){	// chain of p2
+console.log( v ); 	// 42
+} );
+
+//This could have been done as:
+var p = Promise.resolve( 21 );
+p.then( function(v){
+console.log( v ); 	// 21
+return v * 2;		// fulfill the chained promise with value 42
+} )
+.then( function(v){	// here's the chained promise
+console.log( v ); 	// 42
+} );
+-> The first then(..) is first step in async sequence, second then(..) is second, and this could exist for long.
+
+//What if we want step 2 to wait for step 1 to do something asynchronous? We're using an immediate return statement, which immediately 
+fulfills the chained promise
+eg:
+var p = Promise.resolve( 21 );
+p.then(function(value){
+    console.log(value);		// now make this then perform an async behaviour here
+    return new Promise(function(resolve, reject){
+        setTimeout( function(){
+	    resolve( value * 2 );	// return a new promise
+        }, 100 );	
+    })
+}).then(function(value){
+    console.log(value);		// evaluate after async behaviour done
+});
+
+eg: delayed promise example:
+function delay(time) {
+return new Promise( function(resolve,reject){
+setTimeout(resolve(6), time );
+} );
+}
+delay( 100 ) // step 1
+.then( function STEP2(){
+console.log( "step 2 (after 100ms)" );
+return delay( 200 );
+} )
+.then( function STEP3(){
+console.log( "step 3 (after another 200ms)" );
+return delay( 50 );
+} )
+.then( function STEP4(){
+console.log( "step 4 (next Job)" );
+return delay( 50 );
+} )
+.then( function STEP5(){
+console.log( "step 5 (after another 50ms)" );
+} )
+//output
+step 2 (after 100ms)
+step 3 (after another 200ms)
+step 4 (next Job)
+step 5 (after another 50ms)
+Promise {<resolved>: undefined}
+
+//If there is an error in any of the nested .then(), you need to include the rejected call implementation too, else it will show an error. 
+This is because the error is rethrown which forces the next then(..) to throw the same error again.
+eg:
+var p = new Promise( function(resolve,reject){
+reject( "Oops" );
+} );
+var p2 = p.then(
+function fulfilled(){
+// never gets here
+}
+// include the rejection handler else it shows error : Uncaught (in promise) Oops
+);
+-> solution is to handle the error.
+var p = new Promise( function(resolve,reject){
+reject( "Oops" );
+} );
+var p2 = p.then(
+function fulfilled(){
+				// never gets here
+}, function rejected(value){
+    console.log(value)		// Oops
+}
+);
+
+
+eg:
+var p = Promise.resolve( 42 );
+p.then(
+// assumed fulfillment handler, if omitted or any other non-function value passed
+// function(v) {
+// return v;
+// }
+null,			// lets fulfillment pass through, and handles the rejection. 
+function rejected(err){
+// never gets here
+}
+);
+
+-> Flow control : A then(..) call automatically produces a new promise to be returned, and if there are fulfillment/rejection handlers, then the particular
+value is resolved to the promise. 
+
+-> resolve, reject and fulfill
+var p = new Promise( function(X,Y){
+// X() for fulfillment
+// Y() for rejection
+} );
+There are two callbacks X and Y , X usually assigns a fulfilled value to the promise and Y always assigns a rejected value.
+Considering the second function Y first, Y() is mostly called reject() because that is exactly what it does.
+However, resolve() is not the name of X mostly, but it turns out to be a more accurate name as it is very unambiguious, it actually is used to give the 
+result to the promise, be it fulfill or reject. This is why resolve() should be the perfect name for X(), and reject() for Y(). 
+eg:
+var p1 = Promise.resolve("42"); 
+var p2 = Promise.reject(err);
+Promise.resolve() returns a received genuine promise directly, or unwraps the thennable it receives. If the thennable unwraps to give a fulfillment, the 
+promise is resolved to that value, but if it unwraps revealing a rejected state, resolve still stores its value which is actually the rejected value.
+
+eg 1: rejected promise being resolved.
+var rejectedTh = {
+then: function(resolved,rejected) {
+rejected( "Oops" );
+}
+};
+var rejectedPr = Promise.resolve( rejectedTh ); // gives error : Uncaught (in promise) Oops
+
+eg 2:
+var rejectedPr = new Promise( function(resolve,reject){
+// resolve this promise with a rejected promise
+resolve( Promise.reject( "Oops" ) );
+} );
+rejectedPr.then(
+function fulfilled(){
+// never gets here
+},
+function rejected(err){
+console.log( err ); // "Oops"
+}
+);
+
+Since we see that whatever the value assigned to the promise, resolve means that it was actually assigned something, even if the assignment had to be an
+error assignment. Hence, resolve is a better first parameter name.
+
+-> As a resolve(..) can actually unwrap the Promise value passed to it, the reject(..) does not perform this unwrapping. 
+It assigns the promise value as the rejection reason.
+
+-> ERROR HANDLING
+try-catch are a very useful tool for error handling, but doesnt work with async operations.
+eg :
+try {
+    setTimeout(() => {
+        throw new Error();
+    }, 1000);
+} catch (e) {
+    console.log("error caught");
+    console.log(e);
+}
+Output -> Uncaught Error -> this error occurs because if there is any error generated in the try block, it is not caught by the catch block because catch 
+cannot handle async exceptions.
+
+->Implement "Error-first callback style" for handling error exceptions.
+function foo(cb) {
+setTimeout( function(){
+try {
+var x = baz.bars();
+cb( null, x ); 			// error is caused here because baz.bars() is not defined.
+}
+catch (err) {
+console.log("caught here");	// error is caught here 
+cb( err );			// error is logged out here, and the code exits. -> TypeError: baz.bars is not a function
+}
+}, 100 );
+}
+foo( function(err,val){
+if (err) {
+console.error( err ); // bummer :(
+}
+else {
+console.log( val );
+}
+} );
+
+->Promises use "split-callback style" error handling in its .then() function.
+var p = Promise.reject( "Oops" );
+p.then(
+function fulfilled(){
+// never gets here
+},
+function rejected(err){
+console.log( err ); // "Oops"-> error handled.
+}
+)
+but what if there occurs an error in either of the fulfilled / rejected method?
+var p = Promise.resolve( 42 );
+p.then(
+function fulfilled(msg){
+console.log( msg.toLowerCase() ); -> since numbers don't have string functions, so it will throw an error, but it is not caught by error handler of p.then()
+},
+function rejected(err){
+// never gets here
+}
+);
+=> this is because error handler implemented is for the promise p, not for p.then(..), hence causing error.
+
+-> Best practice for handling promises is to add a promise chain
+var p = Promise.resolve( 42 );
+p.then(
+function fulfilled(msg){
+// numbers don't have string functions, so will throw an error
+console.log( msg.toLowerCase() );
+}
+)
+.catch( function(err){		// .catch after a promise catches any error that occurs in a fulfilled or a rejected method.
+console.log("this error occured : " + err)	
+});
+//this error occured : TypeError: msg.toLowerCase is not a function
+//Promise {<resolved>: undefined}
+=> it is possible that the catch block has an error ..
+
+-> Promise.all([..])
+eg:
+var p1 = request( "http://some.url.1/" );
+var p2 = request( "http://some.url.2/" );
+Promise.all( [p1,p2] )	// array of promise instances
+.then( function(msgs){	// both p1 and p2 fulfill and pass in their messages here
+return request(
+"http://some.url.3/?v=" + msgs.join(",")
+);
+} )
+.then( function(msg){
+console.log( msg );
+} );
+// Promise.all() expects a single arguement which is an array of promise instances, and the promise returned from it can take an arguement which is the 
+fulfillment message array of the fulfillment msgs assigned to the promises, in the order in which they are present in the arguement.
+//The array in promise.all() passed as an arguement can contain Promises, thenables, or immediate values, so it is made sure that a Promise.resolve() is done
+through all the elements of array, to ensure a genuine promise being passed.
+//It is important to attach a rejection/error handler to every promise, esp the one returned from promise.all()
+//If any of the promises in the arguement is rejected, promise.all() returns a rejection, else it is fulfilled only if all the promises are fulfilled.
+//If the array is empty, then promise.all() is immediately fulfilled.
+
+-> Promise.race(..) -> respond to the first promise that crosses the finish line.
+eg:
+var p1 = request( "http://some.url.1/" );
+var p2 = request( "http://some.url.2/" );
+Promise.race( [p1,p2] )
+.then( function(msg){
+// either `p1` or `p2` will win the race
+return request(
+"http://some.url.3/?v=" + msg
+);
+} )
+.then( function(msg){
+console.log( msg );
+} );
+
+// Promise.race() expects a single arguement which is an array of promise instances, and the promise returned from it can take an arguement which is the 
+fulfillment message of the first promise that is resolved.
+//The array in promise.race() passed as an arguement can contain Promises, thenables, or immediate values, so it is made sure that a Promise.resolve() is done
+through all the elements of array, to ensure a genuine promise being passed.
+//It is important to attach a rejection/error handler to every promise, esp the one returned from promise.race()
+//If the array is empty, then promise.race() is immediately rejected.
+
+eg of both :
+var p1 = Promise.resolve(41);
+var p2 = Promise.resolve("34");
+var p3 = Promise.reject("reject");
+
+Promise.all([p1, p2]).then(function(msgs){
+    return msgs.join(", ");
+}).then(function(msg){
+    console.log(msg);
+});
+// 41, 34 -> Promise {<resolved>: undefined}
+
+Promise.all([p1, p2, p3]).then(function(msgs){
+    return msgs.join(", ");
+}).then(function(msg){
+    console.log(msg);
+});
+// Promise {<rejected>: "reject"} -> Uncaught (in promise) reject
+
+Promise.race([p1, p2, p3]).then(function(msg){
+    return msg;
+}).then(function(msg){
+    console.log(msg);
+});
+// 41 -> Promise {<resolved>: undefined}
+
+Promise.race([p2, p3]).then(function(msg){
+    return msg;
+}).then(function(msg){
+    console.log(msg);
+});
+// 34 -> Promise {<resolved>: undefined}
+
+Promise.race([p1, p2]).then(function(msg){
+    return msg;
+}).then(function(msg){
+    console.log(msg);
+});
+// 41 -> Promise {<resolved>: undefined}
+
+Promise.race([p3]).then(function(msg){
+    return msg;
+}).then(function(msg){
+    console.log(msg);
+});
+// Promise {<rejected>: "reject"} -> Uncaught (in promise) reject
+
+Promise.all([]).then(function(msgs){
+    return msgs.join(", ");
+}).then(function(msg){
+    console.log(msg);
+});
+// 4 -> Promise {<resolved>: undefined}
+
+Promise.race([]).then(function(msg){
+    return msg;
+}).then(function(msg){
+    console.log(msg);
+});
+// Promise {<pending>}
+
+->Timeout promise : including a promise which is resolved after some time in Promise.all() or race(), sometimes evaluates correct, sometimes leads to errors.
+eg : using timeout promise in promise.race(..)
+var p1 = Promise.resolve(32);
+var timeoutPromise = function f(s){
+setTimeout(function(){
+return new Promise(()=>{console.log(42)});
+}, s);
+}
+
+Promise.race( [
+p1,
+timeoutPromise( 3000 ) // give it 3 seconds
+] )
+.then(
+function(msgs){
+    return msgs;
+},
+function(err){
+// either p1 rejected, or it just didn't finish in time, so inspect err
+}).then(function(msg){
+    console.log(msg);
+});
+// 34 -> Promise {<resolved>: undefined} -> 42
+
+
+// revisit page 69
+
+
+-> Promise.resolve(..) unwraps thennable values
+eg:
+var fulfilledTh = {
+then: function(res) { res( 42 ); }
+};
+var rejectedTh = {
+then: function(res,rej) {
+rej( "Oops" );
+}
+};
+var p1 = Promise.resolve( fulfilledTh );
+var p2 = Promise.resolve( rejectedTh );
+p1;	//Promise {<resolved>: 42}
+p2;	//Promise {<rejected>: "Oops"}
+
+-> then and catch in promises
+p.then( fulfilled );			// using then, we can include the first callback which will be a fulfillment function.
+p.then( fulfilled, rejected );		// we can also include both callbacks, first for fulfillment and other for the rejected.
+p.catch( rejected ); 			// catch only takes the rejection callback as parameter, or you can associate it as : p.then( null, rejected )
+
+->More examples on Promise.all(..) and Promise.race(..)
+var p1 = Promise.resolve( 42 );
+var p2 = Promise.resolve( "Hello World" );
+var p3 = Promise.reject( "Oops" );
+Promise.race( [p1,p2,p3] )
+.then( function(msg){
+console.log( msg ); // 42
+} );
+Promise.all( [p1,p2,p3] )
+.catch( function(err){
+console.error( err ); // "Oops"
+} );
+Promise.all( [p1,p2] )
+.then( function(msgs){
+console.log( msgs ); // [42,"Hello World"]
+} );
+
+->Sequence error handling in promises -> if you have a chain of promises to be done, there is no way to observe if any error occurs.
+If you construct a promise chain without any error handlers, any error, if occurs, in any promise will be carried out down to all the promises until the
+process ends. 
+eg:
+var p = foo( 42 )
+.then( STEP2 )
+.then( STEP3 );
+To know the error, if any, you can add an error handler/ reference to the last promise in the chain.
+eg:
+p.catch( handleErrors );
+-> Here, p is not the first promise but the last promise which was returned after .then(STEP3) . p.catch(..) will hence notify if any error occurs anywhere.
+But what if an error handler already exists somewhere for a promise, in that case, the error will not be notified at the last.
+
+Lets see some examples :
+var p1 = Promise.resolve( 42 );
+var p2 = Promise.resolve( "Hello World" );
+var p3 = Promise.reject( "Oops" );
+var p = p1.then(function(){
+		return p3
+	}).catch((err)=>{
+		console.log(err);
+	});	// Oops -> error caught in catch
+var p = p1.then(function(){
+		return p2
+	}).then(function(){
+		return p3
+	}).catch((err)=>{
+		console.log(err);
+	});	// Oops -> error caught in catch
+var p = p1.then(function(){
+		return p3
+	}).then(function(){
+		console.log("i came here?");
+		return p2
+	}).catch((err)=>{
+		console.log(err);
+	});	// Oops -> error caught in catch, since error was after promise p3, p2 was not executed.
+var p4 = Promise.resolve(45);
+var p = p1.then(function(){
+		return p2
+	}).then(function(){
+		return p3
+	}).catch((err)=>{
+		console.log("caught at 1 " + err);
+		console.log(err);
+	}).then(function(){
+		console.log("came for p4");
+		return p4
+	}).catch((err)=>{
+		console.log("caught at 2 " + err);
+		console.log(err);
+	});
+// i came here?
+// caught at 1 Oops
+// came for p4
+
+->splitting values : a promise is usually available to return a single value, but we can implement the functionalities to 
+eg:
+function getY(x) {
+return new Promise( function(resolve,reject){
+setTimeout( function(){
+resolve( (3 * x) - 1 );
+}, 100 );
+} );
+}
+function foo(bar,baz) {
+var x = bar * baz;
+// return both promises -> one that we create by converting an individual value into a promise, the other one that we get from the getY(..)
+return [Promise.resolve( x ), getY( x )];	// this is actually an array of promises that is passed.
+}
+Promise.all(foo( 10, 20 ))
+.then( function(msgs){
+var x = msgs[0];	// access first promise
+var y = msgs[1];	// access second promise
+console.log( x, y );
+} );
+// 200 599
+
+->unwrap/ spread arguements : ES6 offers array destructuring to help in spreading the arguements. spreading simply means accessing multiple arguements differently.
+eg: array assignment destructuring
+Promise.all(
+foo( 10, 20 )
+)
+.then( function(msgs){
+var [x,y] = msgs;
+console.log( x, y ); // 200 599
+} );
+ 
+eg: array parameter destructuring
+Promise.all(
+foo( 10, 20 )
+)
+.then( function([x,y]){
+console.log( x, y ); // 200 599
+} );
+
+->wrapping a callback aware fn to a promise aware fn (a function which returns a function itself that returns a promise) is called lifting or promisifying.
+*******
+
+// polyfill-safe guard check
+if (!Promise.wrap) {
+	Promise.wrap = function(fn) {			// create a wrapper function that converts callback aware to promise aware fn.
+		return function() {
+			var args = [].slice.call( arguments );	// all arguements as fn are now present in array form in args
+			return new Promise( function(resolve,reject){
+				fn.apply(null, args.concat( function(err,v){	// apply has 2 parameters, this and object as args  
+					if (err) {				// this is null and args as second... (!!)
+						reject( err );
+					}
+					else {
+						resolve( v );
+					}
+				}));
+			});
+		};
+	};
+}
+
+var a = (m) => {return Promise.resolve(m)};
+// refactor foo(..), but keep it externally callback-based for compatibility with other parts of the code for now - use a's promise internally
+function foo(x,y,cb) {
+a(1).then(
+function fulfilled(text){
+cb( null, text );
+},
+cb
+);
+}
+// now, for this code's purposes, make a promisory for foo(..)
+var betterFoo = Promise.wrap( foo );
+// and use the promisory
+betterFoo( 11, 31 ).then(
+function fulfilled(text){
+console.log( text );
+},
+function rejected(err){
+console.error( err );
+}
+);
+// 1 + a promise
+
+*******
+->uncancelable promise : Once u resolve the value of a promise, there's nothing external you can do to stop it if something else happens that introduces 
+uncertainity.
+-> consider a timeout scenario:
+var p = foo( 42 );
+Promise.race( [
+p,
+timeoutPromise( 3000 )
+] )
+.then(
+doSomething,
+handleError
+);
+p.then( function(){
+// still happens even in the timeout case
+} );
+->The timeout was external to the promise p, so p itself keeps going, which we don't want. One option is to define your resolution callbacks - 
+eg:
+var OK = true;
+var p = foo( 42 );
+Promise.race( [
+p,
+timeoutPromise( 3000 )
+.catch( function(err){
+OK = false;
+throw err;
+} )
+] )
+.then(
+doSomething,
+handleError
+);
+p.then( function(){
+if (OK) {
+// only happens if no timeout! 
+}
+} );
+
+-> what exactly is inversion of control.
+It is like removing dependencies.
+public class TextEditor {
+    private SpellChecker checker;
+    public TextEditor() {
+        this.checker = new SpellChecker();
+    }
+}
+What we've done here creates a dependency between the TextEditor and the SpellChecker. 
+In an IoC scenario we would instead do something like this:
+public class TextEditor {
+    private IocSpellChecker checker;
+    public TextEditor(IocSpellChecker checker) {
+        this.checker = checker;
+    }
+}
+Ioc introduces abstraction in our code, it helps in removing direct dependencies and is used mainly in oops.
+-> promises make everything async
+-> drawbacks of callbacks
+Callback-based async doesn't fit how our brain plans out steps of a task.
+Callbacks aren't trustable or composable because of inversion of control.
+
+
+-> ES6 GENERATORS
+eg :
+var x = 1;
+function foo() {
+x++;
+bar(); // <-- what about this line?
+console.log( "x:", x );
+}
+function bar() {
+x++;
+}
+foo(); // x: 3
+// what if you want bar() to execute but dont call it explicitly?
+var x = 1;
+function *foo() {	// generator function
+x++;
+yield; // pause! -> yield is always included inside a generator fn only, it is used to pause the execution of the g fn.
+console.log( "x:", x );
+}
+function bar() {
+x++;
+}
+// construct an iterator it to control the generator
+var it = foo();	// does not execute *foo(), creates a constructor
+it.next();	// starts foo here -> {value: undefined, done: false}
+x; 		// 2
+bar();
+x; 		// 3
+it.next(); 	// x: 3 -> {value: undefined, done: true} -> this is what yield returns from a generator fn, value is the return value, done is the status
+-> a generator fn may not necessarily complete its execution
+**lets call generator function g-fn
+
+-> a g-fn supports input/output 
+eg:
+function *foo(x,y) {
+return x * y;
+}
+var it = foo( 6, 7 );
+var res = it.next();
+res.value; // 42
+it.next(); -> {value: undefined, done: true}
+
+eg : it.next() executes g-fn until the end of g-fn is seen, or a yield statement is found.
+function *foo() {
+x++;
+x++;
+x++;
+yield; // pause 1.
+console.log( "x:", x );
+yield; // pause 2.
+x++;
+return x;
+}
+var x = 1;
+var a = foo();
+a.next();	//{value: undefined, done: false}
+x		//4
+a.next(); 	//x: 4
+{value: undefined, done: false}
+x		//4
+a.next();	//{value: 5, done: true}-> see the value:5, if g-fn returns a value, yield takes it as its value.
+
+eg : 
+function *foo(x) {
+var y = x * (yield);	// here yield expects a value from the .next() and pauses the assignment statement in between and requests calling code to give it
+return y;		// a result. and then the g-fn returns the value y
+}
+var it = foo( 6 );
+it.next();		// starts foo
+var res = it.next( 7 );	// value passed to yield and the the return value is accepted
+res.value; // 42
+-> here we see a mismatch of next(..). why only 2? the first one moves the code till yield is encountered. the second one assigns yield the value and runs
+the code until next yield or end of g-fn. hence we need 2 next(..) to finally access the value of the returned variable y.
+
+**messages can go in both directions -- yield .. as an expression can send out messages in response to next(..) calls, 
+and next(..) can send values to a paused yield expression.
+eg:
+function *foo(x) {
+var y = x * (yield "Hello"); // yield can pass a message
+return y;
+}
+var it = foo( 6 );
+var res = it.next(); 	// go till first yield
+res.value; 		// "Hello" -> yield returned a message
+res = it.next( 7 ); 	// pass 7 to yield
+res.value; 		// 42 -> output -> since we always have a value returned from yield, undefined by default, we dont need an explicit return in g-fn
+
+-> multiple instances of same generator example, everytime you construct an iterator for a generator, you create its instance
+eg :
+function *foo() {
+var x = yield 2;
+z++;
+var y = yield (x * z);
+console.log( x, y, z );
+}
+var z = 1;
+var it1 = foo();
+var it2 = foo();
+var val1 = it1.next().value; // 2 <-- yield 2
+var val2 = it2.next().value; // 2 <-- yield 2
+val1 = it1.next( val2 * 10 ).value; // 40 <-- x:20(2*10), z:2
+val2 = it2.next( val1 * 5 ).value; // 600 <-- x:200(40*5), z:3
+it1.next( val2 ); // y: 600 -> val2 is sent into the first generator instance it1 , so that y gets value 600
+// 20 600 3
+it2.next( val1 ); // y: 40 -> val1 is sent into the first generator instance it2 , so that y gets value 40
+// 200 40 3
+
+-> lets see a generator example where we can implement interleaving using generators
+eg:
+var a = 1;
+var b = 2;
+function *foo() {
+a++;
+yield;
+b = b * a;
+a = (yield b) + 3;
+}
+function *bar() {
+b--;
+yield;
+a = (yield 8) + b;
+b = a * (yield 2);
+}
+// after foo() then bar(), a = 11, b = 22
+
+function step(gen) {	// it just a method to implement it.next(..).value
+var it = gen();
+var last;
+return function() {
+// whatever is yield-ed out, just send it right back in the next time!
+last = it.next( last ).value;
+};
+}
+
+// make sure to reset `a` and `b`
+a = 1;
+b = 2;
+var s1 = step( foo );
+var s2 = step( bar );
+// run *foo() completely first
+s1();
+s1();
+s1();
+// now run *bar()
+s2();
+s2();
+s2();
+s2();
+console.log( a, b ); // 11 22
+
+// make sure to reset a and b -> now we are using these steps and interleaving, you can try your own instances of running some part of foo(..) then running
+some of bar(..), or vice versa. 
+a = 1;
+b = 2;
+var s1 = step( foo );
+var s2 = step( bar );
+s2(); // b--;
+s2(); // yield 8
+s1(); // a++;
+s2(); // a = 8 + b;
+// yield 2
+s1(); // b = b * a;
+// yield b
+s1(); // a = b + 3;
+s2(); // b = a * 2;
+console.log( a, b ); // 12 18
